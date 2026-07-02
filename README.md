@@ -31,6 +31,7 @@ Seeed Studio XIAO ESP32-S3 と 2.0インチTFT液晶(HS20HS072RX, ST7789, 240×3
 | `case/GameFive_Case_Top.stl` | ケース上蓋 (クリア材推奨) |
 | `case/GameFive_Case_Assembly.step` | ケース組立 STEP |
 | `case/case_rebuild_fusion360.py` | Fusion 360 API 用ケース生成スクリプト (パラメトリック再生成) |
+| `easyeda/GameFive.epro` | **EasyEDA Pro プロジェクトファイル**(回路図 + PCB ソース) — EasyEDA Pro の File → Open で開けます |
 | `images/` | 基板レンダリング |
 
 ![PCB layout](images/board_layout.png)
