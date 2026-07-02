@@ -10,8 +10,8 @@ Game Five is an experiment in **end-to-end AI hardware development**. The entire
 
 | Deliverable | Developed by Fable 5 | Status |
 |---|---|---|
-| **Schematic design** | Component selection (all JLCPCB in-stock parts), netlist, power tree, GPIO budgeting via 74HC165 | ✅ Done |
-| **PCB layout** | 120 × 85 mm 2-layer board — placement, autorouting, GND pours, ~325 stitching vias, DRC clean, fab outputs | ✅ Done |
+| **Schematic design** | Component selection (all JLCPCB in-stock parts), netlist, power tree, GPIO budgeting via 74HC165 | 🏭 1st prototype in fabrication |
+| **PCB layout** | 120 × 85 mm 2-layer board — placement, autorouting, GND pours, ~325 stitching vias, DRC clean, fab outputs | 🏭 1st prototype in fabrication |
 | **Enclosure** | Two-piece 3D-printable case, generated parametrically through the Fusion 360 API | 🚧 In development |
 | **Game software** | Game framework + games for ESP32-S3 (display, input, sound drivers) | 🚧 In development |
 
