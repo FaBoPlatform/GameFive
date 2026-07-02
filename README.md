@@ -12,7 +12,7 @@ Game Five is an experiment in **end-to-end AI hardware development**. The entire
 |---|---|---|
 | **Schematic design** | Component selection (all JLCPCB in-stock parts), netlist, power tree, GPIO budgeting via 74HC165 | ✅ Done |
 | **PCB layout** | 120 × 85 mm 2-layer board — placement, autorouting, GND pours, ~325 stitching vias, DRC clean, fab outputs | ✅ Done |
-| **Enclosure** | Two-piece 3D-printable case, generated parametrically through the Fusion 360 API | ✅ Done |
+| **Enclosure** | Two-piece 3D-printable case, generated parametrically through the Fusion 360 API | 🚧 In development |
 | **Game software** | Game framework + games for ESP32-S3 (display, input, sound drivers) | 🚧 In development |
 
 The AI operated the EDA tool (EasyEDA Pro) and the CAD tool (Autodesk Fusion 360) programmatically through their APIs — placing parts, wiring nets, routing, running DRC, exporting Gerbers, and solid-modeling the case — while humans reviewed each iteration and steered the design ("make the D-pad symmetric", "move the display up", "the flat cable folds here").
