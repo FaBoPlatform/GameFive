@@ -1,10 +1,23 @@
 # Game Five
 
-**A handheld game console based on the Seeed Studio XIAO ESP32-S3**
+**A handheld game console fully engineered by an AI — Claude "Fable 5"**
 
 ![Game Five PCB (3D render)](images/board_3d.png)
 
-Game Five is an open-source handheld game console consisting of a custom PCB and a 3D-printable enclosure, designed around the Seeed Studio **XIAO ESP32-S3** and a 2.0-inch **HS20HS072RX** TFT display (ST7789, 240×320, SPI). All components were selected to be in stock at JLCPCB for turnkey PCBA assembly.
+## About this project
+
+Game Five is an experiment in **end-to-end AI hardware development**. The entire product is designed by **Fable 5** (Anthropic's Claude), directed through natural-language conversation by its human co-designers:
+
+| Deliverable | Developed by Fable 5 | Status |
+|---|---|---|
+| **Schematic design** | Component selection (all JLCPCB in-stock parts), netlist, power tree, GPIO budgeting via 74HC165 | ✅ Done |
+| **PCB layout** | 120 × 85 mm 2-layer board — placement, autorouting, GND pours, ~325 stitching vias, DRC clean, fab outputs | ✅ Done |
+| **Enclosure** | Two-piece 3D-printable case, generated parametrically through the Fusion 360 API | ✅ Done |
+| **Game software** | Game framework + games for ESP32-S3 (display, input, sound drivers) | 🚧 In development |
+
+The AI operated the EDA tool (EasyEDA Pro) and the CAD tool (Autodesk Fusion 360) programmatically through their APIs — placing parts, wiring nets, routing, running DRC, exporting Gerbers, and solid-modeling the case — while humans reviewed each iteration and steered the design ("make the D-pad symmetric", "move the display up", "the flat cable folds here").
+
+The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20HS072RX** TFT (ST7789, 240×320, SPI), with GameBoy-style controls and I2S audio.
 
 ## Features
 
@@ -31,6 +44,8 @@ Game Five is an open-source handheld game console consisting of a custom PCB and
 | `case/case_rebuild_fusion360.py` | Fusion 360 API script that regenerates the case parametrically |
 | `easyeda/GameFive.epro` | **EasyEDA Pro project file** (full schematic + PCB source) — open via File → Open in EasyEDA Pro |
 | `images/` | Board renders |
+
+Game firmware will be added under `firmware/` as development progresses.
 
 ![PCB layout](images/board_layout.png)
 
@@ -75,5 +90,5 @@ See [LICENSE](LICENSE) for the full text.
 
 ## Credits
 
-- Designed by **Fable 5** (Claude, Anthropic)
-- Co-designed by **Akira & Tom**
+- Schematic, PCB layout, enclosure, and game software: **Fable 5** (Claude, Anthropic)
+- Co-designed and directed by **Akira & Tom**
