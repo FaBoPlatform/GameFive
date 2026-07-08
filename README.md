@@ -13,7 +13,7 @@ Game Five is an experiment in **end-to-end AI hardware development**. The entire
 | **Schematic design** | Component selection (all JLCPCB in-stock parts), netlist, power tree, GPIO budgeting via 74HC165 | 🏭 1st prototype in fabrication |
 | **PCB layout** | 120 × 85 mm 2-layer board — placement, autorouting, GND pours, ~325 stitching vias, DRC clean, fab outputs | 🏭 1st prototype in fabrication |
 | **Enclosure** | Two-piece 3D-printable case, generated parametrically through the Fusion 360 API | 🚧 In development |
-| **Game software** | Game framework + games for ESP32-S3 (display, input, sound drivers) | 🚧 In development |
+| **Game software** | Board support component + games for ESP32-S3 (display, input, sound drivers) | 🚧 In development — HW test + SNAKE running on the XIAO |
 
 The AI operated the EDA tool (EasyEDA Pro) and the CAD tool (Autodesk Fusion 360) programmatically through their APIs — placing parts, wiring nets, routing, running DRC, exporting Gerbers, and solid-modeling the case — while humans reviewed each iteration and steered the design ("make the D-pad symmetric", "move the display up", "the flat cable folds here").
 
@@ -43,9 +43,12 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 | `case/GameFive_Case_Assembly.step` | Enclosure assembly STEP model |
 | `case/case_rebuild_fusion360.py` | Fusion 360 API script that regenerates the case parametrically |
 | `easyeda/GameFive.epro` | **EasyEDA Pro project file** (full schematic + PCB source) — open via File → Open in EasyEDA Pro |
+| `firmware/components/gamefive/` | **Board support component** — ST7789 driver, 74HC165 buttons, backlight PWM, pin map, 8×8 font |
+| `firmware/hwtest/` | **ESP-IDF hardware bring-up test** — display test patterns + live key test (see its README) |
+| `firmware/snake/` | **SNAKE** — the first game (D-pad steer, score, speed-up, high score) |
 | `images/` | Board renders |
 
-Game firmware will be added under `firmware/` as development progresses.
+More games will be added under `firmware/` as development progresses.
 
 ![PCB layout](images/board_layout.png)
 
