@@ -23,7 +23,7 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 
 - **MCU**: Seeed XIAO ESP32-S3 (Wi-Fi / BLE, USB-C, built-in LiPo charger)
 - **Display**: HS20HS072RX 2.0" TFT, 240×320, ST7789, 4-wire SPI (LCSC **C5329582**)
-- **Controls**: D-pad + A/B buttons (Panasonic EVQQ1D06M round-plunger tactile switches) + SELECT/START (XKB TS-1187A-B-A-B gold round-button tactile switches)
+- **Controls**: D-pad + A/B buttons (Panasonic EVQQ1D06M round-plunger tactile switches) + SELECT/START (Omron B3F-1025 through-hole tactile switches — orange round button, crisp 2.55 N click)
 - **Audio**: dropped from the current board revision — the I2S pins (BCLK/LRCLK/DIN) stay reserved on the XIAO for a future audio add-on
 - **Power**: LiPo battery (JST PH2.0) wired directly to the XIAO BAT± pads — charging is handled by the XIAO's onboard charger
 - **Button matrix via 74HC165**: the XIAO exposes only 11 GPIOs, so the 8 buttons are read through a **74HC165** shift register sharing the SPI bus (LCD + buttons + backlight PWM all fit, with I2S pins to spare)
@@ -82,7 +82,7 @@ More games will be added under `firmware/` as development progresses.
 1. Upload `fab/GameFive_Gerber.zip` (2-layer, 1.6 mm, any color).
 2. For PCBA, upload `GameFive_BOM.xlsx` and `GameFive_PickAndPlace.xlsx`.
 3. **U1 (XIAO ESP32-S3) is permanently out of stock at JLC** — either consign the part or mark it DNP and hand-solder it.
-4. **J1 (battery connector, through-hole)** is not supported by Economic PCBA — use Standard PCBA or hand-solder.
+4. **J1 (battery connector) and SW7/SW8 (Omron B3F-1025) are through-hole** — not supported by Economic PCBA; use Standard PCBA or hand-solder them.
 5. Order the display HS20HS072RX (C5329582) and a LiPo battery separately.
 6. 3D-print the case STLs (clear resin/filament recommended for the top lid). The case is fastened with four M2.5 screws.
 
