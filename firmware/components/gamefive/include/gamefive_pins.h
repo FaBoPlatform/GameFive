@@ -21,12 +21,11 @@
 #define GF_LCD_PCLK_HZ     (40 * 1000 * 1000)
 
 /*
- * The panel is mounted with its FPC exit at the TOP of the board, which
- * puts the panel's native origin at the bottom — the image must be
- * rotated 180 degrees to appear upright to the player.
- * Set to 0 if your prototype shows everything upside down.
+ * Screen orientation. Confirmed on hardware: the panel scan direction is
+ * already upright for the player as mounted (FPC at the top), so no flip
+ * is applied. Set to 1 if your module shows everything upside down.
  */
-#define GF_LCD_ROTATE_180  1
+#define GF_LCD_ROTATE_180  0
 
 /*
  * Some ST7789 modules (most IPS variants) need color inversion enabled.

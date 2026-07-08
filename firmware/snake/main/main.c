@@ -198,7 +198,11 @@ static bool play(void) /* true = back to title requested */
     s_score = 0;
     s_len = 3;
     s_head_i = s_len - 1;
-    dir_t dir = DIR_UP, next_dir = DIR_UP;
+    dir_t dir = DIR_UP;
+    /* two-deep turn queue so quick successive taps (e.g. UP then LEFT
+     * within one step) are both honored */
+    dir_t dq[2];
+    int dq_n = 0;
 
     gf_lcd_clear(GF_BLACK);
     hud_draw();
@@ -220,11 +224,18 @@ static bool play(void) /* true = back to title requested */
         uint8_t held;
         uint8_t edges = keys_pressed_edges(&held);
 
-        /* direction: last d-pad edge wins; no 180-degree reversal */
-        if ((edges & GF_KEY_UP)    && dir != DIR_DOWN)  next_dir = DIR_UP;
-        if ((edges & GF_KEY_DOWN)  && dir != DIR_UP)    next_dir = DIR_DOWN;
-        if ((edges & GF_KEY_LEFT)  && dir != DIR_RIGHT) next_dir = DIR_LEFT;
-        if ((edges & GF_KEY_RIGHT) && dir != DIR_LEFT)  next_dir = DIR_RIGHT;
+        /* queue d-pad edges; each is validated against the direction the
+         * snake will have when the turn applies (dir opposites are x^1) */
+        static const struct { uint8_t key; dir_t d; } k_map[4] = {
+            { GF_KEY_UP, DIR_UP }, { GF_KEY_DOWN, DIR_DOWN },
+            { GF_KEY_LEFT, DIR_LEFT }, { GF_KEY_RIGHT, DIR_RIGHT },
+        };
+        for (int k = 0; k < 4; k++) {
+            if (!(edges & k_map[k].key)) continue;
+            dir_t base = dq_n ? dq[dq_n - 1] : dir;
+            dir_t d = k_map[k].d;
+            if (d != base && d != (base ^ 1) && dq_n < 2) dq[dq_n++] = d;
+        }
 
         if (edges & GF_KEY_START) pause_loop();
 
@@ -237,7 +248,11 @@ static bool play(void) /* true = back to title requested */
         elapsed += TICK_MS;
         if (elapsed >= step_ms) {
             elapsed = 0;
-            dir = next_dir;
+            if (dq_n > 0) {
+                dir = dq[0];
+                dq[0] = dq[1];
+                dq_n--;
+            }
 
             cell_t head = body_at(0);
             cell_t nh = { (int8_t)(head.x + k_dx[dir]),

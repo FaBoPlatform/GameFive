@@ -82,5 +82,15 @@ uint8_t gf_keys_read(uint8_t *raw_out)
 
     uint8_t raw = t.rx_data[0]; /* bit7=H .. bit0=A, 1 = released */
     if (raw_out) *raw_out = raw;
-    return (uint8_t)~raw;       /* 1 = pressed, bit0=A=UP .. bit7=H=SELECT */
+
+    /* Debounce: a change is accepted only after two consecutive identical
+     * samples (~40 ms at the apps' 50 Hz poll), filtering both mechanical
+     * bounce and noise from a floating/unfitted shift register. */
+    static uint8_t s_stable = 0, s_last = 0xEE; /* 0xEE: impossible first value */
+    uint8_t sample = (uint8_t)~raw; /* 1 = pressed, bit0=A=UP .. bit7=H=SELECT */
+    if (sample == s_last) {
+        s_stable = sample;
+    }
+    s_last = sample;
+    return s_stable;
 }
