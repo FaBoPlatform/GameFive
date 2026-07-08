@@ -23,12 +23,12 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 
 - **MCU**: Seeed XIAO ESP32-S3 (Wi-Fi / BLE, USB-C, built-in LiPo charger)
 - **Display**: HS20HS072RX 2.0" TFT, 240×320, ST7789, 4-wire SPI (LCSC **C5329582**)
-- **Controls**: D-pad + A/B buttons (Panasonic EVQQ1D06M round-plunger tactile switches) + SELECT/START (compact tactile switches)
+- **Controls**: D-pad + A/B buttons (Panasonic EVQQ1D06M round-plunger tactile switches) + SELECT/START (XKB TS-1187A-B-A-B gold round-button tactile switches)
 - **Audio**: MAX98357A I2S amplifier + 8 Ω speaker (JST PH2.0 connector)
 - **Power**: LiPo battery (JST PH2.0) wired directly to the XIAO BAT± pads — charging is handled by the XIAO's onboard charger
 - **Button matrix via 74HC165**: the XIAO exposes only 11 GPIOs, so the 8 buttons are read through a **74HC165** shift register sharing the SPI bus (LCD + buttons + I2S audio + backlight PWM all fit)
-- **PCB**: 120 × 85 mm, 2-layer, ground pours on both sides tied together with ~325 stitching vias, DRC clean
-- **FPC notch**: a 26 mm wide notch in the top board edge — the display's flat cable folds back at the module edge, passes through the notch, and plugs into the FPC connector (J3) on the back side
+- **PCB**: 120 × 61 mm, 2-layer, ground pours on both sides tied together with ~190 stitching vias, DRC clean
+- **FPC notch**: a 26 mm wide square notch in the top board edge, giving finger access to the FPC connector's flip lid — the display's flat cable lies flat on the front and slides straight into the front-mounted connector (J3), no fold, no through-board pass
 - **Enclosure**: two-piece 3D-printed case (bottom tray + top lid) with a cross-shaped D-pad cutout and a raised clear window island over the display
 
 ## Repository contents
@@ -72,8 +72,8 @@ More games will be added under `firmware/` as development progresses.
 
 ## Display connection
 
-- The LCD flat cable **folds back at the top edge of the module**, passes through the 26 mm notch in the top board edge, and inserts into **J3 on the back side** (XKB X05A20L12T, 12-pin 0.5 mm bottom-contact flip connector).
-- Because the fold mirrors the cable, **J3 is wired in reverse pin order** (J3 pin *n* = LCD pin *13 − n*).
+- The LCD flat cable lies flat on the front of the board and slides **straight into J3 on the front side** (XKB X05A20L12T, 12-pin 0.5 mm bottom-contact flip connector) — no fold, no through-board pass.
+- **J3 is wired in straight pin order** (J3 pin *n* = LCD pin *n*); the square notch above it provides finger access to the connector's flip lid.
 - The silkscreen frame (51.8 × 36.2 mm) on the front marks the display mounting position.
 - The display itself (C5329582) is **not included in the BOM** — order it separately.
 
