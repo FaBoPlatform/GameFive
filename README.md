@@ -28,7 +28,7 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 - **Power**: LiPo battery (JST PH2.0) wired directly to the XIAO BAT± pads — charging is handled by the XIAO's onboard charger
 - **Button matrix via 74HC165**: the XIAO exposes only 11 GPIOs, so the 8 buttons are read through a **74HC165** shift register sharing the SPI bus (LCD + buttons + I2S audio + backlight PWM all fit)
 - **PCB**: 120 × 61 mm, 2-layer, ground pours on both sides tied together with ~190 stitching vias, DRC clean
-- **FPC notch**: a 26 mm wide square notch in the top board edge, giving finger access to the FPC connector's flip lid — the display's flat cable lies flat on the front and slides straight into the front-mounted connector (J3), no fold, no through-board pass
+- **Display connector under the panel**: the flat cable folds back at its root (the module's natural fold) and plugs into J3 mounted on the front, underneath the display — a clean rectangular board with no notch and no through-board pass
 - **Enclosure**: two-piece 3D-printed case (bottom tray + top lid) with a cross-shaped D-pad cutout and a raised clear window island over the display
 
 ## Repository contents
@@ -72,8 +72,8 @@ More games will be added under `firmware/` as development progresses.
 
 ## Display connection
 
-- The LCD flat cable lies flat on the front of the board and slides **straight into J3 on the front side** (XKB X05A20L12T, 12-pin 0.5 mm bottom-contact flip connector) — no fold, no through-board pass.
-- **J3 is wired in straight pin order** (J3 pin *n* = LCD pin *n*); the square notch above it provides finger access to the connector's flip lid.
+- The LCD flat cable **folds back at its root** (the module's natural fold, per the datasheet) and plugs into **J3 on the front side, underneath the display** (XKB X05A20L12T, 12-pin 0.5 mm bottom-contact flip connector; mouth toward the module's top edge).
+- **J3 is wired in straight pin order** (J3 pin *n* = LCD pin *n*), with the connector rotated 180° to meet the folded tail.
 - The silkscreen frame (51.8 × 36.2 mm) on the front marks the display mounting position.
 - The display itself (C5329582) is **not included in the BOM** — order it separately.
 
