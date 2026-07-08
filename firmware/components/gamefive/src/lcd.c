@@ -5,6 +5,7 @@
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
@@ -24,6 +25,22 @@ static const char *TAG = "gf_lcd";
 #define CHUNK_LINES 40
 static uint16_t *s_chunk;
 static esp_lcd_panel_handle_t s_panel;
+static SemaphoreHandle_t s_flush_done;
+
+/*
+ * esp_lcd's SPI tx_color QUEUES the pixel payload and returns before the DMA
+ * transfer finishes — reusing the source buffer right away would corrupt the
+ * pixels still on the wire. The IO layer fires this callback once per
+ * draw_bitmap (on its final chunk); gf_lcd_blit blocks on it so every draw
+ * is fully synchronous and buffers are always safe to rewrite.
+ */
+static bool flush_done_cb(esp_lcd_panel_io_handle_t io,
+                          esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
+{
+    BaseType_t woken = pdFALSE;
+    xSemaphoreGiveFromISR(s_flush_done, &woken);
+    return woken == pdTRUE;
+}
 
 #define BL_LEDC_TIMER   LEDC_TIMER_0
 #define BL_LEDC_CHANNEL LEDC_CHANNEL_0
@@ -54,7 +71,10 @@ esp_err_t gf_lcd_init(void)
         .lcd_param_bits = 8,
         .spi_mode = 0,
         .trans_queue_depth = 10,
+        .on_color_trans_done = flush_done_cb,
     };
+    s_flush_done = xSemaphoreCreateBinary();
+    ESP_RETURN_ON_FALSE(s_flush_done, ESP_ERR_NO_MEM, TAG, "sem alloc");
     ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)GF_SPI_HOST,
                                                  &io_cfg, &io),
                         TAG, "panel io");
@@ -115,6 +135,7 @@ void gf_lcd_backlight(int percent)
 void gf_lcd_blit(int x, int y, int w, int h, const uint16_t *pix)
 {
     ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(s_panel, x, y, x + w, y + h, pix));
+    xSemaphoreTake(s_flush_done, portMAX_DELAY); /* wait for the DMA flush */
 }
 
 void gf_lcd_fill_rect(int x, int y, int w, int h, uint16_t color)
