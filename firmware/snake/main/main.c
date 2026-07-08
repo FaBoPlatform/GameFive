@@ -22,6 +22,22 @@
 
 static const char *TAG = "snake";
 
+/*
+ * Old-prototype compatibility (HandyGame rev.0 board): the UP (bit0) and
+ * SELECT (bit7) shift-register lines are stuck low on that board, so they
+ * are masked out, the A button steers UP, and holding B returns to the
+ * title screen. Set to 0 for the Game Five rev.1 board.
+ */
+#define SNAKE_OLDBOARD_COMPAT 1
+
+#if SNAKE_OLDBOARD_COMPAT
+#define KEYS_IGNORE_MASK ((uint8_t)(GF_KEY_UP | GF_KEY_SELECT))
+#define TITLE_HOLD_KEY   GF_KEY_B
+#else
+#define KEYS_IGNORE_MASK ((uint8_t)0)
+#define TITLE_HOLD_KEY   GF_KEY_SELECT
+#endif
+
 #define W GF_LCD_H_RES            /* 240 */
 #define H GF_LCD_V_RES            /* 320 */
 
@@ -105,7 +121,7 @@ static cell_t food_place(void)
 static uint8_t s_prev_keys;
 static uint8_t keys_pressed_edges(uint8_t *held_out)
 {
-    uint8_t now = gf_keys_read(NULL);
+    uint8_t now = gf_keys_read(NULL) & (uint8_t)~KEYS_IGNORE_MASK;
     uint8_t edges = (uint8_t)(now & ~s_prev_keys);
     s_prev_keys = now;
     if (held_out) *held_out = now;
@@ -130,6 +146,10 @@ static void title_screen(void)
 
     gf_lcd_text((W - gf_lcd_text_w("PRESS START", 2)) / 2, 210,
                 "PRESS START", 2, GF_WHITE, GF_BLACK);
+#if SNAKE_OLDBOARD_COMPAT
+    gf_lcd_text((W - gf_lcd_text_w("A=UP  HOLD B=TITLE", 1)) / 2, 236,
+                "A=UP  HOLD B=TITLE", 1, GF_GRAY, GF_BLACK);
+#endif
     char buf[24];
     snprintf(buf, sizeof(buf), "HI SCORE %lu", (unsigned long)s_hiscore);
     gf_lcd_text((W - gf_lcd_text_w(buf, 1)) / 2, 250, buf, 1,
@@ -226,11 +246,14 @@ static bool play(void) /* true = back to title requested */
 
         /* queue d-pad edges; each is validated against the direction the
          * snake will have when the turn applies (dir opposites are x^1) */
-        static const struct { uint8_t key; dir_t d; } k_map[4] = {
+        static const struct { uint8_t key; dir_t d; } k_map[] = {
             { GF_KEY_UP, DIR_UP }, { GF_KEY_DOWN, DIR_DOWN },
             { GF_KEY_LEFT, DIR_LEFT }, { GF_KEY_RIGHT, DIR_RIGHT },
+#if SNAKE_OLDBOARD_COMPAT
+            { GF_KEY_A, DIR_UP },  /* A substitutes the dead UP line */
+#endif
         };
-        for (int k = 0; k < 4; k++) {
+        for (int k = 0; k < (int)(sizeof(k_map) / sizeof(k_map[0])); k++) {
             if (!(edges & k_map[k].key)) continue;
             dir_t base = dq_n ? dq[dq_n - 1] : dir;
             dir_t d = k_map[k].d;
@@ -239,7 +262,7 @@ static bool play(void) /* true = back to title requested */
 
         if (edges & GF_KEY_START) pause_loop();
 
-        if (held == GF_KEY_SELECT) {
+        if (held == TITLE_HOLD_KEY) {
             if (++sel_hold >= 1500 / TICK_MS) return true;
         } else {
             sel_hold = 0;
