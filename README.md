@@ -24,9 +24,9 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 - **MCU**: Seeed XIAO ESP32-S3 (Wi-Fi / BLE, USB-C, built-in LiPo charger)
 - **Display**: HS20HS072RX 2.0" TFT, 240×320, ST7789, 4-wire SPI (LCSC **C5329582**)
 - **Controls**: D-pad + A/B buttons (Panasonic EVQQ1D06M round-plunger tactile switches) + SELECT/START (XKB TS-1187A-B-A-B gold round-button tactile switches)
-- **Audio**: MAX98357A I2S amplifier + 8 Ω speaker (JST PH2.0 connector)
+- **Audio**: dropped from the current board revision — the I2S pins (BCLK/LRCLK/DIN) stay reserved on the XIAO for a future audio add-on
 - **Power**: LiPo battery (JST PH2.0) wired directly to the XIAO BAT± pads — charging is handled by the XIAO's onboard charger
-- **Button matrix via 74HC165**: the XIAO exposes only 11 GPIOs, so the 8 buttons are read through a **74HC165** shift register sharing the SPI bus (LCD + buttons + I2S audio + backlight PWM all fit)
+- **Button matrix via 74HC165**: the XIAO exposes only 11 GPIOs, so the 8 buttons are read through a **74HC165** shift register sharing the SPI bus (LCD + buttons + backlight PWM all fit, with I2S pins to spare)
 - **PCB**: 120 × 61 mm, 2-layer, ground pours on both sides tied together with ~190 stitching vias, DRC clean
 - **Display connector under the panel**: the flat cable folds back at its root (the module's natural fold) and plugs into J3 mounted on the front, underneath the display — a clean rectangular board with no notch and no through-board pass
 - **Enclosure**: two-piece 3D-printed case (bottom tray + top lid) with a cross-shaped D-pad cutout and a raised clear window island over the display
@@ -83,7 +83,7 @@ More games will be added under `firmware/` as development progresses.
 2. For PCBA, upload `GameFive_BOM.xlsx` and `GameFive_PickAndPlace.xlsx`.
 3. **U1 (XIAO ESP32-S3) is permanently out of stock at JLC** — either consign the part or mark it DNP and hand-solder it.
 4. **J1 (battery connector, through-hole)** is not supported by Economic PCBA — use Standard PCBA or hand-solder.
-5. Order the display HS20HS072RX (C5329582), a LiPo battery, and an 8 Ω speaker separately.
+5. Order the display HS20HS072RX (C5329582) and a LiPo battery separately.
 6. 3D-print the case STLs (clear resin/filament recommended for the top lid). The case is fastened with four M2.5 screws.
 
 ## License
