@@ -2,6 +2,7 @@
 # - gently raised mound over the display (8mm slope bands, +3mm plateau)
 # - through-holes over all 8 keys
 # Mates with GameFive_Case_Bottom (126x67, walls 2.5, 10mm cavity version)
+# MIRRORED left-right (x -> OX-x); interior headroom 7mm above the PCB
 import adsk.core, adsk.fusion, math
 
 def run(_context):
@@ -15,26 +16,26 @@ def run(_context):
 
     OX, OY = 126.0, 67.0
     WALL = 2.5
-    DECK_IN, DECK_OUT = 4.0, 6.0     # deck inner ceiling / outer surface (seam z=0)
-    M_TOP = 9.0                      # mound plateau top
+    DECK_IN, DECK_OUT = 5.0, 7.0     # deck inner ceiling / outer surface (seam z=0); 2+5 = 7mm above PCB top
+    M_TOP = 10.0                     # mound plateau top
     # mound base rect (slope bands inside this footprint)
-    MX0, MX1 = 35.5, 92.0
+    MX0, MX1 = 34.0, 90.5            # mirrored
     MY0, MY1 = 0.0, 55.3
     SLOPE_W = 8.0                    # slope band width (7.0 on the bottom edge)
     SLOPE_WB = 7.0
     RISE = M_TOP - DECK_OUT          # 3.0
     # tongue (alignment lip into the bottom case pocket)
-    TZ0, TZ1 = -1.5, 4.2
+    TZ0, TZ1 = -1.5, 5.2   # top must overlap the deck underside (z=DECK_IN) to stay one lump
     # buttons (case coords mm) and hole diameters
-    HOLES = [
-        (20.04, 22.84, 8.0),  # UP
-        (20.04, 43.16, 8.0),  # DOWN
-        (9.88, 33.00, 8.0),   # LEFT
-        (30.20, 33.00, 8.0),  # RIGHT
-        (114.71, 39.83, 8.0), # A
-        (97.18, 39.83, 8.0),  # B
-        (70.61, 60.28, 9.5),  # START
-        (55.37, 60.28, 9.5),  # SELECT
+    HOLES = [   # mirrored: x -> 126 - x
+        (105.96, 22.84, 8.0), # UP
+        (105.96, 43.16, 8.0), # DOWN
+        (116.12, 33.00, 8.0), # LEFT
+        (95.80, 33.00, 8.0),  # RIGHT
+        (11.29, 39.83, 8.0),  # A
+        (28.82, 39.83, 8.0),  # B
+        (55.39, 60.28, 8.0),  # START
+        (70.63, 60.28, 8.0),  # SELECT
     ]
 
     def box(x0, x1, y0, y1, z0, z1):
@@ -130,24 +131,24 @@ def run(_context):
     def probe(x, y, z):
         return int(b.pointContainment(adsk.core.Point3D.create(mm(x), mm(y), mm(z))))
     checks = [
-        ("deck solid",          probe(110, 8, 5.0), 0),
+        ("deck solid",          probe(110, 8, 6.0), 0),
         ("cavity empty",        probe(63, 33.5, 2.0), 2),
-        ("plateau solid",       probe(63, 27, 8.5), 0),
-        ("above plateau",       probe(63, 27, 9.4), 2),
-        ("slope low solid",     probe(37, 27, 6.3), 0),
-        ("slope high empty",    probe(37, 27, 7.6), 2),
-        ("slope btm solid",     probe(63, 53.5, 6.3), 0),
-        ("slope btm empty",     probe(63, 53.5, 7.9), 2),
-        ("A hole empty",        probe(114.71, 39.83, 5.0), 2),
-        ("SELECT hole empty",   probe(55.37, 60.28, 5.0), 2),
-        ("D-pad UP hole empty", probe(20.04, 22.84, 5.0), 2),
-        ("web RIGHT-mound",     probe(34.9, 33.0, 5.0), 0),
+        ("plateau solid",       probe(63, 27, 9.5), 0),
+        ("above plateau",       probe(63, 27, 10.4), 2),
+        ("slope low solid",     probe(37, 27, 7.3), 0),
+        ("slope high empty",    probe(37, 27, 8.6), 2),
+        ("slope btm solid",     probe(63, 53.5, 7.3), 0),
+        ("slope btm empty",     probe(63, 53.5, 8.2), 2),
+        ("A hole empty",        probe(11.29, 39.83, 6.0), 2),
+        ("SELECT hole empty",   probe(70.63, 60.28, 6.0), 2),
+        ("D-pad UP hole empty", probe(105.96, 22.84, 6.0), 2),
+        ("web RIGHT-mound",     probe(91.1, 33.0, 6.0), 0),
         ("tongue solid",        probe(3.6, 33, -0.75), 0),
         ("tongue gap empty",    probe(63, OY-3.6, -0.75), 2),
         ("skirt wall solid",    probe(1.2, 33, 3.0), 0),
-        ("deck left of mound",  probe(31, 12, 5.0), 0),
-        ("deck right of mound", probe(105, 20, 5.0), 0),
-        ("deck below mound",    probe(30, 60, 5.0), 0),
+        ("deck left of mound",  probe(31, 12, 6.0), 0),
+        ("deck right of mound", probe(100, 10, 6.0), 0),
+        ("deck below mound",    probe(30, 60, 6.0), 0),
     ]
     ok = True
     for name, got, want in checks:

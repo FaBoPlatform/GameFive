@@ -1,5 +1,6 @@
 # GameFive Case Bottom — Fusion 360 script (run via MCP bridge)
 # Board: GameFive rev.2i, 120x61x1.6mm, R3.81 corners
+# MIRRORED left-right (x -> OX-x) so the printed case matches the physical board
 # Requirement: 15mm cavity UNDER the PCB for speaker + LiPo battery
 import adsk.core, adsk.fusion
 
@@ -64,11 +65,11 @@ def run(_context):
     # pilot holes (M2.5 self-tap) from boss top down
     for (bx, by) in MH:
         tbm.booleanOperation(body, cyl(bx+OFF, by+OFF, Z_PCB-PILOT_DEPTH, Z_PCB+0.2, PILOT_D/2), DIFF)
-    # USB-C slot in RIGHT wall (open to top so board+XIAO drops in)
-    tbm.booleanOperation(body, box(119.0, OX+1, USB_YC-USB_W/2, USB_YC+USB_W/2, USB_Z0, OZ+1), DIFF)
+    # USB-C slot in LEFT wall after mirroring (open to top so board+XIAO drops in)
+    tbm.booleanOperation(body, box(-1.0, 7.0, USB_YC-USB_W/2, USB_YC+USB_W/2, USB_Z0, OZ+1), DIFF)
     # speaker grille: concentric rings of D2 holes in the floor, near J2 (board bottom-right)
     import math
-    GX, GY = 100.0, 40.0            # grille center (case coords, mm)
+    GX, GY = 26.0, 40.0             # grille center (case coords, mm, mirrored)
     holes = [(GX, GY)]
     for ring, n in ((4.0, 6), (8.0, 12), (12.0, 18)):
         for k in range(n):
@@ -110,18 +111,19 @@ def run(_context):
         return int(b.pointContainment(adsk.core.Point3D.create(mm(x), mm(y), mm(z))))
     # 0=inside solid, 2=outside
     checks = [
+        ("USB slot open at top",  probe(1.5, USB_YC, 15.0), 2),
         ("floor solid",        probe(63, 33.5, 1.0), 0),
         ("cavity empty",       probe(63, 33.5, 9.0), 2),
         ("ledge solid",        probe(63, WALL+LEDGE/2, 10.0), 0),
         ("boss solid",         probe(MH[0][0]+OFF+2.4, MH[0][1]+OFF, 10.0), 0),
         ("pilot empty",        probe(MH[0][0]+OFF, MH[0][1]+OFF, 10.0), 2),
-        ("USB slot empty",     probe(OX-WALL+0.5, USB_YC, 9.0), 2),
-        ("wall solid",         probe(OX-WALL+0.5, 50.0, 12.0), 0),
+        ("USB slot empty",     probe(1.5, USB_YC, 9.0), 2),
+        ("wall solid",         probe(1.2, 50.0, 12.0), 0),
         ("pocket empty",       probe(63, 33.5, 18.0), 2),
-        ("grille hole empty",  probe(100.0, 40.0, 1.0), 2),
-        ("grille web solid",   probe(102.0, 40.0, 1.0), 0),
-        ("USB thru (ledge zone)", probe(122.25, USB_YC, 9.0), 2),
-        ("USB thru (wall zone)",  probe(124.5, USB_YC, 9.0), 2),
+        ("grille hole empty",  probe(26.0, 40.0, 1.0), 2),
+        ("grille web solid",   probe(28.0, 40.0, 1.0), 0),
+        ("USB thru (ledge zone)", probe(3.75, USB_YC, 9.0), 2),
+        ("USB thru (wall zone)",  probe(1.0, USB_YC, 9.0), 2),
     ]
     ok = True
     for name, got, want in checks:
