@@ -65,7 +65,7 @@ def run(_context):
     for (bx, by) in MH:
         tbm.booleanOperation(body, cyl(bx+OFF, by+OFF, Z_PCB-PILOT_DEPTH, Z_PCB+0.2, PILOT_D/2), DIFF)
     # USB-C slot in RIGHT wall (open to top so board+XIAO drops in)
-    tbm.booleanOperation(body, box(OX-WALL-1.0, OX+1, USB_YC-USB_W/2, USB_YC+USB_W/2, USB_Z0, OZ+1), DIFF)
+    tbm.booleanOperation(body, box(119.0, OX+1, USB_YC-USB_W/2, USB_YC+USB_W/2, USB_Z0, OZ+1), DIFF)
     # speaker grille: concentric rings of D2 holes in the floor, near J2 (board bottom-right)
     import math
     GX, GY = 100.0, 40.0            # grille center (case coords, mm)
@@ -120,6 +120,8 @@ def run(_context):
         ("pocket empty",       probe(63, 33.5, 18.0), 2),
         ("grille hole empty",  probe(100.0, 40.0, 1.0), 2),
         ("grille web solid",   probe(102.0, 40.0, 1.0), 0),
+        ("USB thru (ledge zone)", probe(122.25, USB_YC, 14.0), 2),
+        ("USB thru (wall zone)",  probe(124.5, USB_YC, 14.0), 2),
     ]
     ok = True
     for name, got, want in checks:
