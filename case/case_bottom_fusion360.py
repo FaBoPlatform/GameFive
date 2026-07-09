@@ -17,7 +17,7 @@ def run(_context):
     CLR = 0.5                     # board clearance per side
     WALL = 2.5
     FLOOR = 2.0
-    CAV = 15.0                    # under-PCB cavity (speaker + LiPo)
+    CAV = 10.0                    # under-PCB cavity (speaker + LiPo)
     PCB_T = 1.6
     RIM = 2.0                     # wall above PCB top
     LEDGE = 1.5
@@ -35,7 +35,7 @@ def run(_context):
     # XIAO USB on RIGHT edge, board-local y center 17.78mm
     USB_YC = 17.78 + OFF
     USB_W = 14.0
-    USB_Z0 = 11.0                 # slot from Z11 up to open top
+    USB_Z0 = FLOOR + CAV - 6.0    # slot bottom 6mm below PCB underside
 
     def box(x0, x1, y0, y1, z0, z1):
         cx, cy, cz = mm((x0+x1)/2), mm((y0+y1)/2), mm((z0+z1)/2)
@@ -114,14 +114,14 @@ def run(_context):
         ("cavity empty",       probe(63, 33.5, 9.0), 2),
         ("ledge solid",        probe(63, WALL+LEDGE/2, 10.0), 0),
         ("boss solid",         probe(MH[0][0]+OFF+2.4, MH[0][1]+OFF, 10.0), 0),
-        ("pilot empty",        probe(MH[0][0]+OFF, MH[0][1]+OFF, 14.0), 2),
-        ("USB slot empty",     probe(OX-WALL+0.5, USB_YC, 14.0), 2),
-        ("wall solid",         probe(OX-WALL+0.5, 50.0, 14.0), 0),
+        ("pilot empty",        probe(MH[0][0]+OFF, MH[0][1]+OFF, 10.0), 2),
+        ("USB slot empty",     probe(OX-WALL+0.5, USB_YC, 9.0), 2),
+        ("wall solid",         probe(OX-WALL+0.5, 50.0, 12.0), 0),
         ("pocket empty",       probe(63, 33.5, 18.0), 2),
         ("grille hole empty",  probe(100.0, 40.0, 1.0), 2),
         ("grille web solid",   probe(102.0, 40.0, 1.0), 0),
-        ("USB thru (ledge zone)", probe(122.25, USB_YC, 14.0), 2),
-        ("USB thru (wall zone)",  probe(124.5, USB_YC, 14.0), 2),
+        ("USB thru (ledge zone)", probe(122.25, USB_YC, 9.0), 2),
+        ("USB thru (wall zone)",  probe(124.5, USB_YC, 9.0), 2),
     ]
     ok = True
     for name, got, want in checks:
