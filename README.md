@@ -24,7 +24,7 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 - **MCU**: Seeed XIAO ESP32-S3 (Wi-Fi / BLE, USB-C, built-in LiPo charger)
 - **Display**: HS20HS072RX 2.0" TFT, 240×320, ST7789, 4-wire SPI (LCSC **C5329582**)
 - **Controls**: D-pad + A/B buttons (Panasonic EVQQ1D06M round-plunger tactile switches) + SELECT/START (Omron B3F-1025 through-hole tactile switches — orange round button, crisp 2.55 N click)
-- **Audio**: dropped from the current board revision — the I2S pins (BCLK/LRCLK/DIN) stay reserved on the XIAO for a future audio add-on
+- **Audio**: **MAX98357A** I2S mono Class-D amplifier (U3) driving a speaker via a JST 1.25mm 2-pin connector (J2, LCSC **C10819**); SD_MODE pulled up (R12) so the amp is enabled by default, GAIN floated (9 dB)
 - **Power**: LiPo battery (JST PH2.0) wired directly to the XIAO BAT± pads — charging is handled by the XIAO's onboard charger
 - **Button matrix via 74HC165**: the XIAO exposes only 11 GPIOs, so the 8 buttons are read through a **74HC165** shift register sharing the SPI bus (LCD + buttons + backlight PWM all fit, with I2S pins to spare)
 - **PCB**: 120 × 61 mm, 2-layer, ground pours on both sides tied together with ~190 stitching vias, DRC clean
