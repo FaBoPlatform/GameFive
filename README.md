@@ -29,7 +29,7 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 - **Button matrix via 74HC165**: the XIAO exposes only 11 GPIOs, so the 8 buttons are read through a **74HC165** shift register sharing the SPI bus (LCD + buttons + backlight PWM all fit, with I2S pins to spare)
 - **PCB**: 120 × 61 mm, 2-layer, ground pours on both sides tied together with ~190 stitching vias, DRC clean
 - **Display connector under the panel**: the flat cable folds back at its root (the module's natural fold) and plugs into J3 mounted on the front, underneath the display — a clean rectangular board with no notch and no through-board pass
-- **Enclosure**: two-piece 3D-printed case — bottom tray with a 10 mm LiPo/speaker cavity and speaker grille, flat solid top cover (print it in clear material so the LCD shows through) with press-through holes for every key
+- **Enclosure**: two-piece 3D-printed case with 1 mm rounded edges — bottom tray with a 10 mm LiPo/speaker cavity and speaker grille, flat solid top cover (print it in clear material so the LCD shows through) with press-through holes for every key (Ø10 mm D-pad/A/B, Ø5 mm SELECT/START); four M2.5 screws pass through the top cover **and the PCB mounting holes** into the bottom bosses, clamping the whole stack together
 
 ## Repository contents
 
@@ -81,7 +81,7 @@ More games will be added under `firmware/` as development progresses.
 3. **U1 (XIAO ESP32-S3) is permanently out of stock at JLC** — either consign the part or mark it DNP and hand-solder it.
 4. **J1 (battery connector) and SW7/SW8 (Omron B3F-1025) are through-hole** — not supported by Economic PCBA; use Standard PCBA or hand-solder them.
 5. Order the display HS20HS072RX (C5329582) and a LiPo battery separately.
-6. 3D-print the case STLs. The case is fastened with four M2.5 screws through the top into the bottom bosses.
+6. 3D-print the case STLs. The case is fastened with four M2.5 screws (~18 mm) that pass through the top cover and the PCB mounting holes into the bottom boss pilot holes — one screw stack holds top, board, and bottom together.
 
 ## License
 

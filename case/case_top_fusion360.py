@@ -21,15 +21,17 @@ def run(_context):
     TZ0, TZ1 = -1.5, 5.2   # top must overlap the deck underside (z=DECK_IN) to stay one lump
     # buttons (case coords mm) and hole diameters
     HOLES = [   # mirrored: x -> 126 - x
-        (105.96, 22.84, 8.0), # UP
-        (105.96, 43.16, 8.0), # DOWN
-        (116.12, 33.00, 8.0), # LEFT
-        (95.80, 33.00, 8.0),  # RIGHT
-        (11.29, 39.83, 8.0),  # A
-        (28.82, 39.83, 8.0),  # B
-        (55.39, 60.28, 8.0),  # START
-        (70.63, 60.28, 8.0),  # SELECT
+        (105.96, 22.84, 10.0), # UP      (EVQQ1 plunger 6.2mm)
+        (105.96, 43.16, 10.0), # DOWN
+        (116.12, 33.00, 10.0), # LEFT
+        (95.80, 33.00, 10.0),  # RIGHT
+        (11.29, 39.83, 10.0),  # A
+        (28.82, 39.83, 10.0),  # B
+        (55.39, 60.28, 5.0),   # START   (B3F plunger 3.5mm)
+        (70.63, 60.28, 5.0),   # SELECT
     ]
+    # M2.5 through-screws: TOP deck -> PCB MH (2.8) -> bottom boss pilot (2.1)
+    MH = [(9.35, 9.35), (116.64, 9.35), (9.35, 57.66), (116.64, 57.66)]
 
     def box(x0, x1, y0, y1, z0, z1):
         ob = adsk.core.OrientedBoundingBox3D.create(
@@ -57,6 +59,8 @@ def run(_context):
     # 5. button holes
     for (hx, hy, hd) in HOLES:
         tbm.booleanOperation(body, cyl(hx, hy, -4, DECK_OUT+2, hd/2), DIFF)
+    for (mx, my) in MH:
+        tbm.booleanOperation(body, cyl(mx, my, -4, DECK_OUT+2, 1.4), DIFF)
 
     bf = root.features.baseFeatures.add()
     bf.startEdit()
@@ -79,6 +83,23 @@ def run(_context):
         fi.edgeSetInputs.addConstantRadiusEdgeSet(coll, adsk.core.ValueInput.createByReal(mm(3.81)), True)
         root.features.filletFeatures.add(fi)
 
+    # R1 rounding on the top-face outer perimeter
+    b = root.bRepBodies.itemByName("GameFive_Case_Top")
+    coll2 = adsk.core.ObjectCollection.create()
+    zt = mm(DECK_OUT)
+    for e in b.edges:
+        v0, v1 = e.startVertex.geometry, e.endVertex.geometry
+        if abs(v0.z - zt) < 1e-5 and abs(v1.z - zt) < 1e-5:
+            bb = e.boundingBox
+            on_edge = (bb.minPoint.x < mm(1.0) or bb.maxPoint.x > mm(OX-1.0) or
+                       bb.minPoint.y < mm(1.0) or bb.maxPoint.y > mm(OY-1.0))
+            if on_edge:
+                coll2.add(e)
+    if coll2.count:
+        fi2 = root.features.filletFeatures.createInput()
+        fi2.edgeSetInputs.addConstantRadiusEdgeSet(coll2, adsk.core.ValueInput.createByReal(mm(1.0)), True)
+        root.features.filletFeatures.add(fi2)
+
     # ---- verification ----
     b = root.bRepBodies.itemByName("GameFive_Case_Top")
     print("lumps:", b.lumps.count)
@@ -96,9 +117,12 @@ def run(_context):
         ("deck top area solid", probe(63, 8, 6.0), 0),
         ("deck low area solid", probe(63, 54.5, 6.0), 0),
         ("A hole empty",        probe(11.29, 39.83, 6.0), 2),
+        ("screw hole empty",    probe(9.35, 9.35, 6.0), 2),
+        ("A hole 10mm wide",    probe(11.29+4.6, 39.83, 6.0), 2),
+        ("SELECT small (5mm)",  probe(70.63+3.0, 60.28, 6.0), 0),
         ("SELECT hole empty",   probe(70.63, 60.28, 6.0), 2),
         ("D-pad UP hole empty", probe(105.96, 22.84, 6.0), 2),
-        ("web deck-RIGHTbtn",   probe(91.1, 33.0, 6.0), 0),
+        ("web deck-RIGHTbtn",   probe(89.5, 33.0, 6.0), 0),
         ("tongue solid",        probe(3.6, 33, -0.75), 0),
         ("tongue gap empty",    probe(63, OY-3.6, -0.75), 2),
         ("skirt wall solid",    probe(1.2, 33, 3.0), 0),

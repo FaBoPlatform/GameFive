@@ -99,6 +99,22 @@ def run(_context):
         fi.edgeSetInputs.addConstantRadiusEdgeSet(coll, adsk.core.ValueInput.createByReal(mm(3.81)), True)
         root.features.filletFeatures.add(fi)
 
+    # R1 rounding on the bottom-face outer perimeter
+    b = root.bRepBodies.itemByName("GameFive_Case_Bottom")
+    coll2 = adsk.core.ObjectCollection.create()
+    for e in b.edges:
+        v0, v1 = e.startVertex.geometry, e.endVertex.geometry
+        if abs(v0.z) < 1e-5 and abs(v1.z) < 1e-5:
+            bb = e.boundingBox
+            on_edge = (bb.minPoint.x < mm(1.0) or bb.maxPoint.x > mm(OX-1.0) or
+                       bb.minPoint.y < mm(1.0) or bb.maxPoint.y > mm(OY-1.0))
+            if on_edge:
+                coll2.add(e)
+    if coll2.count:
+        fi2 = root.features.filletFeatures.createInput()
+        fi2.edgeSetInputs.addConstantRadiusEdgeSet(coll2, adsk.core.ValueInput.createByReal(mm(1.0)), True)
+        root.features.filletFeatures.add(fi2)
+
     # ---- verification ----
     b = root.bRepBodies.itemByName("GameFive_Case_Bottom")
     print("lumps:", b.lumps.count)
