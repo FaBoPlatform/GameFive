@@ -29,7 +29,7 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 - **Button matrix via 74HC165**: the XIAO exposes only 11 GPIOs, so the 8 buttons are read through a **74HC165** shift register sharing the SPI bus (LCD + buttons + backlight PWM all fit, with I2S pins to spare)
 - **PCB**: 120 × 61 mm, 2-layer, ground pours on both sides tied together with ~190 stitching vias, DRC clean
 - **Display connector under the panel**: the flat cable folds back at its root (the module's natural fold) and plugs into J3 mounted on the front, underneath the display — a clean rectangular board with no notch and no through-board pass
-- **Enclosure**: two-piece 3D-printed case (bottom tray + top lid) with a cross-shaped D-pad cutout and a raised clear window island over the display
+- **Enclosure**: two-piece 3D-printed case — bottom tray with a 10 mm LiPo/speaker cavity and speaker grille, top cover with a raised display mound and press-through holes for every key
 
 ## Repository contents
 
@@ -38,10 +38,9 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 | `fab/GameFive_Gerber.zip` | Gerber files for fabrication (JLCPCB, 2-layer) |
 | `fab/GameFive_BOM.xlsx` | Bill of materials with LCSC part numbers (for JLCPCB PCBA) |
 | `fab/GameFive_PickAndPlace.xlsx` | Pick-and-place data |
-| `case/GameFive_Case_Bottom.stl` | Enclosure bottom tray (3D printing) |
-| `case/GameFive_Case_Top.stl` | Enclosure top lid (clear material recommended) |
-| `case/GameFive_Case_Assembly.step` | Enclosure assembly STEP model |
-| `case/case_rebuild_fusion360.py` | Fusion 360 API script that regenerates the case parametrically |
+| `case/GameFive_Case_Bottom.stl` / `.step` | Enclosure bottom tray — 10 mm cavity under the PCB for the LiPo + speaker, speaker grille, drop-in USB-C slot |
+| `case/GameFive_Case_Top.stl` / `.step` | Enclosure top cover — raised display mound, through-holes for all 8 keys |
+| `case/case_bottom_fusion360.py` / `case_top_fusion360.py` | Fusion 360 API scripts that regenerate the case parametrically (verification-gated export) |
 | `easyeda/GameFive.epro` | **EasyEDA Pro project file** (full schematic + PCB source) — open via File → Open in EasyEDA Pro |
 | `firmware/components/gamefive/` | **Board support component** — ST7789 driver, 74HC165 buttons, backlight PWM, pin map, 8×8 font |
 | `firmware/hwtest/` | **ESP-IDF hardware bring-up test** — display test patterns + live key test (see its README) |
@@ -82,7 +81,7 @@ More games will be added under `firmware/` as development progresses.
 3. **U1 (XIAO ESP32-S3) is permanently out of stock at JLC** — either consign the part or mark it DNP and hand-solder it.
 4. **J1 (battery connector) and SW7/SW8 (Omron B3F-1025) are through-hole** — not supported by Economic PCBA; use Standard PCBA or hand-solder them.
 5. Order the display HS20HS072RX (C5329582) and a LiPo battery separately.
-6. 3D-print the case STLs (clear resin/filament recommended for the top lid). The case is fastened with four M2.5 screws.
+6. 3D-print the case STLs. The case is fastened with four M2.5 screws through the top into the bottom bosses.
 
 ## License
 
