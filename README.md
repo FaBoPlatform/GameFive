@@ -31,6 +31,16 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 - **Display connector under the panel**: the flat cable folds back at its root (the module's natural fold) and plugs into J3 mounted on the front, underneath the display — a clean rectangular board with no notch and no through-board pass
 - **Enclosure**: two-piece 3D-printed case with 1 mm rounded edges — bottom tray with a 10 mm LiPo/speaker cavity and speaker grille, flat solid top cover (print it in clear material so the LCD shows through) with press-through holes for every key (Ø10 mm D-pad/A/B, Ø5 mm SELECT/START); four M2.5 screws pass through the top cover **and the PCB mounting holes** into the bottom bosses, clamping the whole stack together
 
+## Enclosure preview
+
+Two-piece 3D-printable case, solid-modeled parametrically through the Fusion 360 API (1 mm rounded edges, four M2.5 screws clamp top + PCB + bottom as one stack).
+
+![Case assembly](images/case_assembly.png)
+
+| Top cover — Ø10 mm D-pad/A/B holes, Ø5 mm SELECT/START holes, 4× screw through-holes | Bottom tray — 10 mm LiPo/speaker cavity, speaker grille, drop-in USB-C slot, screw bosses |
+|---|---|
+| ![Case top](images/case_top.png) | ![Case bottom](images/case_bottom.png) |
+
 ## Repository contents
 
 | Path | Contents |
