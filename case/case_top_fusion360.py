@@ -1,5 +1,5 @@
 # GameFive Case Top (cover) — Fusion 360 script
-# - FLAT deck (no display mound) with a window opening over the LCD active area
+# - FLAT solid deck (no mound, no window — print in clear material for the LCD)
 # - through-holes over all 8 keys
 # Mates with GameFive_Case_Bottom (126x67, walls 2.5, 10mm cavity version)
 # MIRRORED left-right (x -> OX-x); interior headroom 7mm above the PCB
@@ -17,9 +17,6 @@ def run(_context):
     OX, OY = 126.0, 67.0
     WALL = 2.5
     DECK_IN, DECK_OUT = 5.0, 7.0     # deck inner ceiling / outer surface (seam z=0); 2+5 = 7mm above PCB top
-    # display window over the LCD active area (case coords, mirrored frame)
-    WX0, WX1 = 47.2, 78.8
-    WY0, WY1 = 11.0, 52.8
     # tongue (alignment lip into the bottom case pocket)
     TZ0, TZ1 = -1.5, 5.2   # top must overlap the deck underside (z=DECK_IN) to stay one lump
     # buttons (case coords mm) and hole diameters
@@ -52,8 +49,6 @@ def run(_context):
     # 1. skirt + flat deck
     body = box(0, OX, 0, OY, 0, DECK_OUT)
     tbm.booleanOperation(body, box(WALL, OX-WALL, WALL, OY-WALL, -1, DECK_IN), DIFF)
-    # 2. display window (through the deck, over the LCD active area)
-    tbm.booleanOperation(body, box(WX0, WX1, WY0, WY1, -1, DECK_OUT+2), DIFF)
     # 4. alignment tongue (ring into bottom pocket), open at SELECT/START span
     ring = box(2.6, OX-2.6, 2.6, OY-2.6, TZ0, TZ1)
     tbm.booleanOperation(ring, box(4.6, OX-4.6, 4.6, OY-4.6, TZ0-1, TZ1+1), DIFF)
@@ -97,15 +92,13 @@ def run(_context):
     checks = [
         ("deck solid",          probe(110, 8, 6.0), 0),
         ("cavity empty",        probe(63, 33.5, 2.0), 2),
-        ("window empty",        probe(63, 30, 6.0), 2),
-        ("window empty low",    probe(63, 30, 0.5), 2),
-        ("deck above window",   probe(63, 8, 6.0), 0),
-        ("deck below window",   probe(63, 54.5, 6.0), 0),
-        ("deck side of window", probe(45.5, 30, 6.0), 0),
+        ("deck center solid",   probe(63, 30, 6.0), 0),
+        ("deck top area solid", probe(63, 8, 6.0), 0),
+        ("deck low area solid", probe(63, 54.5, 6.0), 0),
         ("A hole empty",        probe(11.29, 39.83, 6.0), 2),
         ("SELECT hole empty",   probe(70.63, 60.28, 6.0), 2),
         ("D-pad UP hole empty", probe(105.96, 22.84, 6.0), 2),
-        ("web window-RIGHTbtn", probe(91.1, 33.0, 6.0), 0),
+        ("web deck-RIGHTbtn",   probe(91.1, 33.0, 6.0), 0),
         ("tongue solid",        probe(3.6, 33, -0.75), 0),
         ("tongue gap empty",    probe(63, OY-3.6, -0.75), 2),
         ("skirt wall solid",    probe(1.2, 33, 3.0), 0),

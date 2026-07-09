@@ -29,7 +29,7 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 - **Button matrix via 74HC165**: the XIAO exposes only 11 GPIOs, so the 8 buttons are read through a **74HC165** shift register sharing the SPI bus (LCD + buttons + backlight PWM all fit, with I2S pins to spare)
 - **PCB**: 120 × 61 mm, 2-layer, ground pours on both sides tied together with ~190 stitching vias, DRC clean
 - **Display connector under the panel**: the flat cable folds back at its root (the module's natural fold) and plugs into J3 mounted on the front, underneath the display — a clean rectangular board with no notch and no through-board pass
-- **Enclosure**: two-piece 3D-printed case — bottom tray with a 10 mm LiPo/speaker cavity and speaker grille, flat top cover with an LCD window opening and press-through holes for every key
+- **Enclosure**: two-piece 3D-printed case — bottom tray with a 10 mm LiPo/speaker cavity and speaker grille, flat solid top cover (print it in clear material so the LCD shows through) with press-through holes for every key
 
 ## Repository contents
 
@@ -39,7 +39,7 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 | `fab/GameFive_BOM.xlsx` | Bill of materials with LCSC part numbers (for JLCPCB PCBA) |
 | `fab/GameFive_PickAndPlace.xlsx` | Pick-and-place data |
 | `case/GameFive_Case_Bottom.stl` / `.step` | Enclosure bottom tray — 10 mm cavity under the PCB for the LiPo + speaker, speaker grille, drop-in USB-C slot |
-| `case/GameFive_Case_Top.stl` / `.step` | Enclosure top cover — flat deck with LCD window opening, through-holes for all 8 keys |
+| `case/GameFive_Case_Top.stl` / `.step` | Enclosure top cover — flat solid deck (clear material recommended), through-holes for all 8 keys |
 | `case/case_bottom_fusion360.py` / `case_top_fusion360.py` | Fusion 360 API scripts that regenerate the case parametrically (verification-gated export) |
 | `easyeda/GameFive.epro` | **EasyEDA Pro project file** (full schematic + PCB source) — open via File → Open in EasyEDA Pro |
 | `firmware/components/gamefive/` | **Board support component** — ST7789 driver, 74HC165 buttons, backlight PWM, pin map, 8×8 font |
