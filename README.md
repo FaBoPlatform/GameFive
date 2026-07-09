@@ -2,7 +2,7 @@
 
 **A handheld game console fully engineered by an AI — Claude "Fable 5"**
 
-![Game Five PCB (3D render)](images/board_3d.png)
+![Game Five PCB (top view)](images/board_layout.png)
 
 ## About this project
 
@@ -11,7 +11,7 @@ Game Five is an experiment in **end-to-end AI hardware development**. The entire
 | Deliverable | Developed by Fable 5 | Status |
 |---|---|---|
 | **Schematic design** | Component selection (all JLCPCB in-stock parts), netlist, power tree, GPIO budgeting via 74HC165 | 🏭 1st prototype in fabrication |
-| **PCB layout** | 120 × 61 mm 2-layer board — placement, autorouting, GND pours, stitching vias, DRC clean, fab outputs | 🏭 rev.1 prototype in fabrication / rev.2 ready to order |
+| **PCB layout** | 120 × 61 mm 2-layer board — placement, autorouting, GND pours, stitching vias, DRC clean, fab outputs | 🏭 rev.1 prototype fabricated / rev.2i current (I2S audio restored, battery connector by the D-pad) |
 | **Enclosure** | Two-piece 3D-printable case, generated parametrically through the Fusion 360 API | 🚧 In development |
 | **Game software** | Board support component + games for ESP32-S3 (display, input, sound drivers) | 🚧 In development — HW test + SNAKE running on the XIAO |
 
@@ -49,8 +49,6 @@ The hardware itself: a Seeed Studio **XIAO ESP32-S3** driving a 2.0-inch **HS20H
 | `images/` | Board renders |
 
 More games will be added under `firmware/` as development progresses.
-
-![PCB layout](images/board_layout.png)
 
 ## Pin map
 
