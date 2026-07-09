@@ -1,5 +1,5 @@
 # GameFive Case Top (cover) — Fusion 360 script
-# - gently raised mound over the display (8mm slope bands, +3mm plateau)
+# - FLAT deck (no display mound) with a window opening over the LCD active area
 # - through-holes over all 8 keys
 # Mates with GameFive_Case_Bottom (126x67, walls 2.5, 10mm cavity version)
 # MIRRORED left-right (x -> OX-x); interior headroom 7mm above the PCB
@@ -17,13 +17,9 @@ def run(_context):
     OX, OY = 126.0, 67.0
     WALL = 2.5
     DECK_IN, DECK_OUT = 5.0, 7.0     # deck inner ceiling / outer surface (seam z=0); 2+5 = 7mm above PCB top
-    M_TOP = 10.0                     # mound plateau top
-    # mound base rect (slope bands inside this footprint)
-    MX0, MX1 = 34.0, 90.5            # mirrored
-    MY0, MY1 = 0.0, 55.3
-    SLOPE_W = 8.0                    # slope band width (7.0 on the bottom edge)
-    SLOPE_WB = 7.0
-    RISE = M_TOP - DECK_OUT          # 3.0
+    # display window over the LCD active area (case coords, mirrored frame)
+    WX0, WX1 = 47.2, 78.8
+    WY0, WY1 = 11.0, 52.8
     # tongue (alignment lip into the bottom case pocket)
     TZ0, TZ1 = -1.5, 5.2   # top must overlap the deck underside (z=DECK_IN) to stay one lump
     # buttons (case coords mm) and hole diameters
@@ -50,46 +46,14 @@ def run(_context):
             adsk.core.Point3D.create(mm(x), mm(y), mm(z0)), mm(r),
             adsk.core.Point3D.create(mm(x), mm(y), mm(z1)), mm(r))
 
-    def tilted_cut(mid, along, second, lenA, lenB, thk):
-        # cutting box resting on the slope plane, extending outward-above (normal +z)
-        ax = [along[i] for i in range(3)]; bx = [second[i] for i in range(3)]
-        n = [ax[1]*bx[2]-ax[2]*bx[1], ax[2]*bx[0]-ax[0]*bx[2], ax[0]*bx[1]-ax[1]*bx[0]]
-        if n[2] < 0:
-            n = [-v for v in n]   # box is symmetric; only the CENTER offset needs +z normal
-        ln = math.sqrt(sum(v*v for v in n)); n = [v/ln for v in n]
-        la = math.sqrt(sum(v*v for v in ax)); a = [v/la for v in ax]
-        lb = math.sqrt(sum(v*v for v in bx)); b = [v/lb for v in bx]
-        c = [mid[i] + n[i]*thk/2 for i in range(3)]
-        ob = adsk.core.OrientedBoundingBox3D.create(
-            adsk.core.Point3D.create(mm(c[0]), mm(c[1]), mm(c[2])),
-            adsk.core.Vector3D.create(a[0], a[1], a[2]),
-            adsk.core.Vector3D.create(b[0], b[1], b[2]),
-            mm(lenA), mm(lenB), mm(thk))
-        return tbm.createBox(ob)
-
     DIFF = adsk.fusion.BooleanTypes.DifferenceBooleanType
     UNI = adsk.fusion.BooleanTypes.UnionBooleanType
 
-    # 1. skirt + deck
+    # 1. skirt + flat deck
     body = box(0, OX, 0, OY, 0, DECK_OUT)
     tbm.booleanOperation(body, box(WALL, OX-WALL, WALL, OY-WALL, -1, DECK_IN), DIFF)
-    # 2. display mound (rect block; slopes carved next)
-    tbm.booleanOperation(body, box(MX0, MX1, MY0, MY1, DECK_OUT-0.5, M_TOP), UNI)
-    # 3. slope cuts (left, right, top(y0), bottom(y1))
-    # each cutting box STARTS at the mound base edge (plane z=DECK_OUT) and
-    # extends up-inward only, so the deck outside the mound is never touched
-    yc = (MY0+MY1)/2; xc = (MX0+MX1)/2
-    LEN_A = 25.0
-    cuts = [
-        ((MX0, yc, DECK_OUT), ( SLOPE_W, 0, RISE), (0, 1, 0), OY+20),
-        ((MX1, yc, DECK_OUT), (-SLOPE_W, 0, RISE), (0, 1, 0), OY+20),
-        ((xc, MY0, DECK_OUT), (0,  SLOPE_W, RISE), (1, 0, 0), OX+20),
-        ((xc, MY1, DECK_OUT), (0, -SLOPE_WB, RISE), (1, 0, 0), OX+20),
-    ]
-    for p0, along, second, lenB in cuts:
-        la = math.sqrt(sum(v*v for v in along)); d = [v/la for v in along]
-        mid = [p0[i] + d[i]*LEN_A/2 for i in range(3)]
-        tbm.booleanOperation(body, tilted_cut(mid, along, second, LEN_A, lenB, 12), DIFF)
+    # 2. display window (through the deck, over the LCD active area)
+    tbm.booleanOperation(body, box(WX0, WX1, WY0, WY1, -1, DECK_OUT+2), DIFF)
     # 4. alignment tongue (ring into bottom pocket), open at SELECT/START span
     ring = box(2.6, OX-2.6, 2.6, OY-2.6, TZ0, TZ1)
     tbm.booleanOperation(ring, box(4.6, OX-4.6, 4.6, OY-4.6, TZ0-1, TZ1+1), DIFF)
@@ -97,7 +61,7 @@ def run(_context):
     tbm.booleanOperation(body, ring, UNI)
     # 5. button holes
     for (hx, hy, hd) in HOLES:
-        tbm.booleanOperation(body, cyl(hx, hy, -4, M_TOP+2, hd/2), DIFF)
+        tbm.booleanOperation(body, cyl(hx, hy, -4, DECK_OUT+2, hd/2), DIFF)
 
     bf = root.features.baseFeatures.add()
     bf.startEdit()
@@ -133,16 +97,15 @@ def run(_context):
     checks = [
         ("deck solid",          probe(110, 8, 6.0), 0),
         ("cavity empty",        probe(63, 33.5, 2.0), 2),
-        ("plateau solid",       probe(63, 27, 9.5), 0),
-        ("above plateau",       probe(63, 27, 10.4), 2),
-        ("slope low solid",     probe(37, 27, 7.3), 0),
-        ("slope high empty",    probe(37, 27, 8.6), 2),
-        ("slope btm solid",     probe(63, 53.5, 7.3), 0),
-        ("slope btm empty",     probe(63, 53.5, 8.2), 2),
+        ("window empty",        probe(63, 30, 6.0), 2),
+        ("window empty low",    probe(63, 30, 0.5), 2),
+        ("deck above window",   probe(63, 8, 6.0), 0),
+        ("deck below window",   probe(63, 54.5, 6.0), 0),
+        ("deck side of window", probe(45.5, 30, 6.0), 0),
         ("A hole empty",        probe(11.29, 39.83, 6.0), 2),
         ("SELECT hole empty",   probe(70.63, 60.28, 6.0), 2),
         ("D-pad UP hole empty", probe(105.96, 22.84, 6.0), 2),
-        ("web RIGHT-mound",     probe(91.1, 33.0, 6.0), 0),
+        ("web window-RIGHTbtn", probe(91.1, 33.0, 6.0), 0),
         ("tongue solid",        probe(3.6, 33, -0.75), 0),
         ("tongue gap empty",    probe(63, OY-3.6, -0.75), 2),
         ("skirt wall solid",    probe(1.2, 33, 3.0), 0),
