@@ -31,6 +31,12 @@ esp_err_t gf_lcd_init(void);
 /* Backlight brightness 0..100 (%). */
 void gf_lcd_backlight(int percent);
 
+/* Raw esp_lcd panel handle (cast to esp_lcd_panel_handle_t) for apps that
+ * need direct panel ops, e.g. landscape rotation. NULL before gf_lcd_init.
+ * Note: the fill/clear/text helpers keep portrait clipping after a rotation —
+ * use gf_lcd_blit (no clipping) in rotated modes. */
+void *gf_lcd_panel(void);
+
 /* Filled rectangle. Coordinates clipped to the panel. */
 void gf_lcd_fill_rect(int x, int y, int w, int h, uint16_t color);
 

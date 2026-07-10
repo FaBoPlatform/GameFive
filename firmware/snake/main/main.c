@@ -15,6 +15,9 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_random.h"
+#include "esp_system.h"
+#include "esp_ota_ops.h"
+#include "esp_partition.h"
 
 #include "gamefive_pins.h"
 #include "lcd.h"
@@ -117,6 +120,22 @@ static cell_t food_place(void)
     return c;
 }
 
+/* ---- back-to-launcher combo: hold B+START ~2s (works on all boards) ---- */
+static void check_exit_combo(uint8_t held)
+{
+    static int count;
+    if ((held & (GF_KEY_B | GF_KEY_START)) == (GF_KEY_B | GF_KEY_START)) {
+        if (++count >= 2000 / TICK_MS) {
+            const esp_partition_t *factory = esp_partition_find_first(
+                ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
+            if (factory && esp_ota_set_boot_partition(factory) == ESP_OK)
+                esp_restart();
+        }
+    } else {
+        count = 0;
+    }
+}
+
 /* ---- key edge helper ---- */
 static uint8_t s_prev_keys;
 static uint8_t keys_pressed_edges(uint8_t *held_out)
@@ -125,6 +144,7 @@ static uint8_t keys_pressed_edges(uint8_t *held_out)
     uint8_t edges = (uint8_t)(now & ~s_prev_keys);
     s_prev_keys = now;
     if (held_out) *held_out = now;
+    check_exit_combo(now);
     return edges;
 }
 

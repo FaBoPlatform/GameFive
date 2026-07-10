@@ -6,3 +6,7 @@ CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
 
 # Console over the XIAO's USB-C (native USB Serial/JTAG)
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Game Five store layout (launcher/ota_0/assets)
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"

@@ -122,6 +122,11 @@ esp_err_t gf_lcd_init(void)
     return ESP_OK;
 }
 
+void *gf_lcd_panel(void)
+{
+    return s_panel;
+}
+
 void gf_lcd_backlight(int percent)
 {
     if (percent < 0) percent = 0;

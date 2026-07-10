@@ -1,0 +1,4 @@
+# Game Five store index v1
+# id|title|version|bin_url|assets_url|assets_size
+snake|SNAKE|1.0|https://raw.githubusercontent.com/FaBoPlatform/GameFive/main/store/snake.bin||0
+doom|DOOM|1.0|https://raw.githubusercontent.com/FaBoPlatform/GameFive/main/store/doom.bin|https://raw.githubusercontent.com/FaBoPlatform/GameFive/main/firmware/doom/wad/doom1-gamefive.wad|4253939

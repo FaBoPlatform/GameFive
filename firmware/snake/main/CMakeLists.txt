@@ -1,3 +1,3 @@
 idf_component_register(SRCS "main.c"
                        INCLUDE_DIRS "."
-                       PRIV_REQUIRES gamefive esp_hw_support)
+                       PRIV_REQUIRES gamefive esp_hw_support app_update esp_partition)

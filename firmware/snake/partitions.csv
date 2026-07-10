@@ -1,0 +1,11 @@
+# Game Five store layout — SHARED by launcher, snake, doom (must stay identical)
+# factory = resident launcher; ota_0 = downloaded game; assets = game data
+# (type 0x42 subtype 0x06 so doom's WAD lookup finds it unchanged).
+# Flash the WAD/assets with: esptool write-flash 0x390000 <file>
+# Name,    Type, SubType, Offset,   Size
+nvs,       data, nvs,     0x9000,   0x4000
+otadata,   data, ota,     0xd000,   0x2000
+phy_init,  data, phy,     0xf000,   0x1000
+factory,   app,  factory, 0x10000,  0x180000
+ota_0,     app,  ota_0,   0x190000, 0x200000
+assets,    0x42, 0x06,    0x390000, 0x470000

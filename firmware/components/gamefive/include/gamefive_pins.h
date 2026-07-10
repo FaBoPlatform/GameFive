@@ -30,8 +30,10 @@
 /*
  * Some ST7789 modules (most IPS variants) need color inversion enabled.
  * If RED shows as CYAN during the fill test, flip this to 1.
+ * Confirmed 2026-07-09 with a 3-row color-bar test on the HS20HS072RX
+ * (2025.12 batch): this panel needs INVON.
  */
-#define GF_LCD_INVERT      0
+#define GF_LCD_INVERT      1
 
 /* ---- Backlight: SI2302 low-side NMOS, PWM, active high ---- */
 #define GF_PIN_LCD_BL      5   /* XIAO D4 */
