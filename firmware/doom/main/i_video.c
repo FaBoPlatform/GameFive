@@ -97,7 +97,15 @@ static void check_exit_combo(uint8_t held)
 void I_StartTic(void)
 {
     static uint8_t prev;
-    uint8_t now = gf_keys_read(NULL) & (uint8_t)~KEYS_IGNORE_MASK;
+    uint8_t raw;
+    uint8_t now = gf_keys_read(&raw) & (uint8_t)~KEYS_IGNORE_MASK;
+
+    static int logged;
+    if (!logged) {
+        logged = 1;
+        lprintf(LO_INFO, "I_StartTic: first keys raw=0x%02x masked=0x%02x\n",
+                raw, now);
+    }
 
     check_exit_combo(now);
     if (now == prev)

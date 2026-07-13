@@ -83,6 +83,13 @@ uint8_t gf_keys_read(uint8_t *raw_out)
     uint8_t raw = t.rx_data[0]; /* bit7=H .. bit0=A, 1 = released */
     if (raw_out) *raw_out = raw;
 
+    /* raw 0x00 = all 8 keys "pressed" at once: physically implausible — it
+     * means the shift register isn't driving MISO (board not fitted, loose
+     * connection). Treat as no input, or phantom keys fire app actions
+     * (a stuck B+START combo kept kicking DOOM back to the launcher). */
+    if (raw == 0x00)
+        raw = 0xFF;
+
     /* Debounce: a change is accepted only after two consecutive identical
      * samples (~40 ms at the apps' 50 Hz poll), filtering both mechanical
      * bounce and noise from a floating/unfitted shift register. */

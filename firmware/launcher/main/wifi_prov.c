@@ -58,12 +58,31 @@ static EventGroupHandle_t s_ev;
 #define EV_GOT_IP  BIT0
 #define EV_FAILED  BIT1
 static int s_retries;
+static int s_last_reason;
+
+const char *wifi_fail_hint(void)
+{
+    switch (s_last_reason) {
+    case WIFI_REASON_NO_AP_FOUND:
+        return "Network not found (2.4GHz only!)";
+    case WIFI_REASON_AUTH_FAIL:
+    case WIFI_REASON_AUTH_EXPIRE:
+    case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+    case WIFI_REASON_HANDSHAKE_TIMEOUT:
+        return "Wrong password?";
+    default:
+        return "";
+    }
+}
 
 static void sta_event(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+        wifi_event_sta_disconnected_t *d = data;
+        s_last_reason = d ? d->reason : 0;
+        ESP_LOGW(TAG, "disconnected, reason=%d", s_last_reason);
         if (s_retries++ < 6) {
             esp_wifi_connect();
         } else {
@@ -98,6 +117,8 @@ esp_err_t wifi_sta_connect(const char *ssid, const char *pass, int timeout_ms)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
     ESP_ERROR_CHECK(esp_wifi_start());
+    /* v1 board runs on marginal charger-backfed power: cap TX bursts */
+    esp_wifi_set_max_tx_power(34); /* 8.5 dBm */
 
     EventBits_t bits = xEventGroupWaitBits(s_ev, EV_GOT_IP | EV_FAILED,
                                            pdFALSE, pdFALSE,
@@ -136,6 +157,21 @@ static void scan_networks(void)
 
 static esp_err_t root_get(httpd_req_t *req)
 {
+    ESP_LOGI(TAG, "GET %s", req->uri);
+
+    /* iOS/Android captive-portal probes: answer "internet OK" so the phone
+     * keeps the WiFi usable and the user can submit from a real browser. */
+    if (strstr(req->uri, "hotspot-detect") || strstr(req->uri, "success")) {
+        httpd_resp_set_type(req, "text/html");
+        return httpd_resp_send(req,
+            "<HTML><HEAD><TITLE>Success</TITLE></HEAD>"
+            "<BODY>Success</BODY></HTML>", HTTPD_RESP_USE_STRLEN);
+    }
+    if (strstr(req->uri, "generate_204") || strstr(req->uri, "gen_204")) {
+        httpd_resp_set_status(req, "204 No Content");
+        return httpd_resp_send(req, NULL, 0);
+    }
+
     static char page[2200];
     snprintf(page, sizeof(page),
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
@@ -197,6 +233,7 @@ static esp_err_t save_post(httpd_req_t *req)
 {
     char body[300] = { 0 };
     int len = httpd_req_recv(req, body, sizeof(body) - 1);
+    ESP_LOGI(TAG, "POST %s (%d bytes)", req->uri, len);
     if (len <= 0)
         return httpd_resp_send_500(req);
 
@@ -239,16 +276,20 @@ void wifi_provisioning_run(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
     ESP_ERROR_CHECK(esp_wifi_start());
+    esp_wifi_set_max_tx_power(34); /* 8.5 dBm — see wifi_sta_connect */
 
     scan_networks();
 
     httpd_handle_t server = NULL;
     httpd_config_t hc = HTTPD_DEFAULT_CONFIG();
+    hc.uri_match_fn = httpd_uri_match_wildcard;
     ESP_ERROR_CHECK(httpd_start(&server, &hc));
-    httpd_uri_t u_root = { .uri = "/", .method = HTTP_GET, .handler = root_get };
     httpd_uri_t u_save = { .uri = "/save", .method = HTTP_POST, .handler = save_post };
-    httpd_register_uri_handler(server, &u_root);
+    httpd_uri_t u_save2 = { .uri = "/*", .method = HTTP_POST, .handler = save_post };
+    httpd_uri_t u_root = { .uri = "/*", .method = HTTP_GET, .handler = root_get };
     httpd_register_uri_handler(server, &u_save);
+    httpd_register_uri_handler(server, &u_save2);
+    httpd_register_uri_handler(server, &u_root);
 
     ESP_LOGI(TAG, "provisioning AP '%s' up at %s", GF_PROV_AP_SSID, GF_PROV_URL);
     /* save_post reboots; nothing to do here */

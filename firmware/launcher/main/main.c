@@ -121,7 +121,8 @@ static void screen_wifi_failed(const char *ssid)
     ui_header();
     ui_center(120, "WiFi FAILED", 2, C_TITLE);
     ui_center(156, ssid, 1, C_DIM);
-    ui_center(190, "A: retry   B: WiFi setup", 1, C_TEXT);
+    ui_center(172, wifi_fail_hint(), 1, C_SEL);
+    ui_center(200, "A: retry   B: WiFi setup", 1, C_TEXT);
     for (;;) {
         uint8_t e = keys_edges();
         if (e & GF_KEY_A)
@@ -212,7 +213,7 @@ void app_main(void)
     ESP_ERROR_CHECK(gf_lcd_init());
     ESP_ERROR_CHECK(gf_keys_init());
     gf_lcd_clear(C_BG);
-    gf_lcd_backlight(100);
+    gf_lcd_backlight(60); /* modest: leave headroom for WiFi TX bursts */
 
     char ssid[33], pass[65];
     if (!wifi_creds_load(ssid, sizeof(ssid), pass, sizeof(pass))) {
