@@ -16,7 +16,7 @@
  * shift-register lines are stuck low, so they must be masked or the engine
  * sees them held down forever. Set to 0 for the Game Five rev.1+ board.
  */
-#define DOOM_OLDBOARD_COMPAT 1
+#define DOOM_OLDBOARD_COMPAT 0
 
 /* The HS20HS072RX panel needs INVON — now handled by the BSP
  * (GF_LCD_INVERT=1 in gamefive_pins.h), so keep this 0. */
