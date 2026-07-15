@@ -1,18 +1,26 @@
 /*
- * Game Five DOOM — sound layer: 8-channel SFX mixer -> MAX98357A over I2S
+ * Game Five DOOM — sound layer: 8-channel SFX mixer + OPL2 music
+ * -> MAX98357A over I2S
  *
  * PrBoom: Copyright (C) 1999-2006 id Software, Lee Killough, Colin Phipps
  * et al., GPL-2.0. Game Five I2S implementation 2026.
  *
- * SFX only (mus_card=0 — no music synth). DMX-format lumps are read
- * zero-copy from the memory-mapped WAD partition and mixed at 11025 Hz
- * mono by a dedicated task on core 1; the MAX98357A (SD_MODE pulled high =
- * (L+R)/2) gets identical L/R slots.
+ * SFX: DMX-format lumps are read zero-copy from the memory-mapped WAD
+ * partition and resampled by a 16.16 stepper into the mix.
+ * Music: MUS lump -> MIDI (mus2mid) -> prboom-plus opl_synth_player
+ * (DBOPL OPL2 emulator, components/oplmusic) rendered synchronously in
+ * the same mixer task on core 1.
+ *
+ * The I2S LRCLK MUST be a MAX98357A-supported rate (8/16/32/44.1/48 kHz).
+ * 11025 Hz is NOT in the amp's supported list — its clock monitor mutes
+ * the output entirely (this was why the first revision made no sound).
+ * We run everything at 32 kHz and let the steppers resample.
  */
 
 #include "config.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "doomdef.h"
 #include "doomstat.h"
 #include "doomtype.h"
@@ -21,19 +29,27 @@
 #include "i_sound.h"
 #include "w_wad.h"
 #include "lprintf.h"
+#include "memio.h"
+#include "mus2mid.h"
+#include "musicplayer.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "driver/i2s_std.h"
+#include "esp_cpu.h"
 
 #include "doom_config.h"
 
-int snd_card = 1;        /* sfx enabled */
-int mus_card = 0;        /* no music */
-int snd_samplerate = 11025;
+extern const music_player_t opl_synth_player;
 
-#define MIX_RATE     11025
-#define MIX_FRAMES   256          /* ~23 ms per block */
+int snd_card = 1;        /* sfx enabled */
+int mus_card = 1;        /* OPL2 music */
+int snd_samplerate = 32000;
+int mus_opl_gain = 50;   /* used by oplmusic/opl.c FillBuffer */
+
+#define MIX_RATE     32000        /* MAX98357A-supported LRCLK */
+#define MIX_FRAMES   256          /* 8 ms per block at 32 kHz */
 #define NUM_CHANNELS 16
 #define MASTER_SHIFT 2            /* s(-128..127)*vol(0..127)>>2 ≈ -12dBFS/ch */
 
@@ -51,13 +67,35 @@ static portMUX_TYPE snd_mux = portMUX_INITIALIZER_UNLOCKED;
 static i2s_chan_handle_t s_tx;
 static int snd_inited;
 
+/* ---- music state (guarded by mus_lock: API calls come from the doom
+ * task on core 0, rendering happens in the sound task on core 1) ---- */
+static SemaphoreHandle_t mus_lock;
+static int mus_inited;
+static const void *mus_handle;
+static void *mus_mididata;         /* converted MIDI buffer (heap) */
+static volatile int mus_playing;
+
 static void sound_task(void *arg)
 {
-    static int16_t buf[MIX_FRAMES * 2]; /* L+R interleaved */
+    static int16_t buf[MIX_FRAMES * 2];  /* L+R interleaved */
+    static int16_t mbuf[MIX_FRAMES * 2]; /* music render block */
+    uint32_t prof_cycles = 0, prof_blocks = 0;
 
     for (;;) {
+        uint32_t c0 = esp_cpu_get_cycle_count();
+
+        /* music first: OPL render into its own block */
+        int have_music = 0;
+        if (mus_inited && xSemaphoreTake(mus_lock, 0) == pdTRUE) {
+            if (mus_playing) {
+                opl_synth_player.render(mbuf, MIX_FRAMES);
+                have_music = 1;
+            }
+            xSemaphoreGive(mus_lock);
+        }
+
         for (int i = 0; i < MIX_FRAMES; i++) {
-            int32_t mix = 0;
+            int32_t mix = have_music ? mbuf[i * 2] : 0;
             taskENTER_CRITICAL(&snd_mux);
             for (int c = 0; c < NUM_CHANNELS; c++) {
                 mix_chan_t *ch = &chans[c];
@@ -68,16 +106,24 @@ static void sound_task(void *arg)
                     ch->active = 0;
                     continue;
                 }
-                mix += ((int)ch->data[idx] - 128) * ch->vol;
+                mix += (((int)ch->data[idx] - 128) * ch->vol) >> MASTER_SHIFT;
                 ch->pos += ch->step;
             }
             taskEXIT_CRITICAL(&snd_mux);
-            mix >>= MASTER_SHIFT;
             if (mix > 32767) mix = 32767;
             if (mix < -32768) mix = -32768;
             buf[i * 2] = (int16_t)mix;
             buf[i * 2 + 1] = (int16_t)mix;
         }
+
+        prof_cycles += esp_cpu_get_cycle_count() - c0;
+        if (++prof_blocks == 1250) {   /* ~10 s of blocks */
+            /* budget per block: 8 ms * 240 MHz = 1.92 Mcycles */
+            lprintf(LO_INFO, "sound_task: avg %u cyc/block (budget 1920000)\n",
+                    (unsigned)(prof_cycles / prof_blocks));
+            prof_cycles = prof_blocks = 0;
+        }
+
         size_t written;
         esp_err_t err =
             i2s_channel_write(s_tx, buf, sizeof(buf), &written, portMAX_DELAY);
@@ -102,6 +148,7 @@ void I_InitSound(void)
     if (i2s_new_channel(&ccfg, &s_tx, NULL) != ESP_OK) {
         lprintf(LO_WARN, "I_InitSound: i2s channel alloc failed\n");
         snd_card = 0;
+        mus_card = 0;
         return;
     }
     i2s_std_config_t scfg = {
@@ -120,13 +167,17 @@ void I_InitSound(void)
         i2s_channel_enable(s_tx) != ESP_OK) {
         lprintf(LO_WARN, "I_InitSound: i2s init failed\n");
         snd_card = 0;
+        mus_card = 0;
         return;
     }
 
-    xTaskCreatePinnedToCore(sound_task, "sound", 4096, NULL, 6, NULL, 1);
+    mus_lock = xSemaphoreCreateMutex();
+    I_InitMusic();
+
+    xTaskCreatePinnedToCore(sound_task, "sound", 8192, NULL, 6, NULL, 1);
     snd_inited = 1;
-    lprintf(LO_INFO, "I_InitSound: I2S %d Hz, %d mix channels\n",
-            MIX_RATE, NUM_CHANNELS);
+    lprintf(LO_INFO, "I_InitSound: I2S %d Hz, %d mix channels, music=%s\n",
+            MIX_RATE, NUM_CHANNELS, mus_inited ? "OPL2" : "off");
 }
 
 void I_ShutdownSound(void)
@@ -237,15 +288,158 @@ void I_UpdateSoundParams(int handle, int volume, int seperation, int pitch)
     taskEXIT_CRITICAL(&snd_mux);
 }
 
-/* ---- music: not implemented (mus_card = 0) ---- */
+/* ---- music: prboom-plus OPL2 synth (components/oplmusic) ---- */
 
-void I_ShutdownMusic(void) {}
-void I_InitMusic(void) {}
-void I_PlaySong(int handle, int looping) {}
-void I_PauseSong(int handle) {}
-void I_ResumeSong(int handle) {}
-void I_StopSong(int handle) {}
-void I_UnRegisterSong(int handle) {}
-int I_RegisterSong(const void *data, size_t len) { return 0; }
-int I_RegisterMusic(const char *filename, musicinfo_t *song) { return 1; }
-void I_SetMusicVolume(int volume) {}
+void I_InitMusic(void)
+{
+    if (mus_inited || !mus_card)
+        return;
+    if (opl_synth_player.init(MIX_RATE)) {
+        mus_inited = 1;
+        lprintf(LO_INFO, "I_InitMusic: %s at %d Hz\n",
+                opl_synth_player.name(), MIX_RATE);
+    } else {
+        mus_card = 0;
+        lprintf(LO_WARN, "I_InitMusic: OPL init failed, music off\n");
+    }
+}
+
+void I_ShutdownMusic(void)
+{
+}
+
+/*
+ * prboom hands us the raw lump (usually MUS, sometimes already MIDI).
+ * Convert MUS -> standard MIDI in a heap buffer that must outlive the
+ * song (the player parses it lazily); free it in I_UnRegisterSong.
+ */
+int I_RegisterSong(const void *data, size_t len)
+{
+    if (!mus_inited || data == NULL || len < 4)
+        return 0;
+
+    const void *mididata = data;
+    size_t midilen = len;
+    void *converted = NULL;
+
+    if (memcmp(data, "MUS\x1a", 4) == 0) {
+        MEMFILE *in = mem_fopen_read(data, len);
+        MEMFILE *out = mem_fopen_write();
+        if (in == NULL || out == NULL || mus2mid(in, out)) {
+            lprintf(LO_WARN, "I_RegisterSong: MUS->MIDI conversion failed\n");
+            if (in) mem_fclose(in);
+            if (out) mem_fclose(out);
+            return 0;
+        }
+        void *outbuf;
+        size_t outlen;
+        mem_get_buf(out, &outbuf, &outlen);
+        converted = malloc(outlen);
+        if (converted == NULL) {
+            mem_fclose(in);
+            mem_fclose(out);
+            return 0;
+        }
+        memcpy(converted, outbuf, outlen);
+        mididata = converted;
+        midilen = outlen;
+        mem_fclose(in);
+        mem_fclose(out);
+    }
+
+    xSemaphoreTake(mus_lock, portMAX_DELAY);
+    if (mus_handle) {                       /* stale song still registered */
+        opl_synth_player.stop();
+        opl_synth_player.unregistersong(mus_handle);
+        mus_handle = NULL;
+        free(mus_mididata);
+        mus_mididata = NULL;
+        mus_playing = 0;
+    }
+    mus_handle = opl_synth_player.registersong(mididata, midilen);
+    if (mus_handle)
+        mus_mididata = converted;           /* may be NULL for raw MIDI */
+    xSemaphoreGive(mus_lock);
+
+    if (mus_handle == NULL) {
+        free(converted);
+        lprintf(LO_WARN, "I_RegisterSong: registersong failed\n");
+        return 0;
+    }
+    return 1;
+}
+
+void I_PlaySong(int handle, int looping)
+{
+    if (!mus_inited)
+        return;
+    xSemaphoreTake(mus_lock, portMAX_DELAY);
+    if (mus_handle) {
+        opl_synth_player.play(mus_handle, looping);
+        mus_playing = 1;
+    }
+    xSemaphoreGive(mus_lock);
+    static int dbg_music;
+    if (dbg_music < 3) {
+        dbg_music++;
+        lprintf(LO_INFO, "I_PlaySong: looping=%d\n", looping);
+    }
+}
+
+void I_PauseSong(int handle)
+{
+    if (!mus_inited)
+        return;
+    xSemaphoreTake(mus_lock, portMAX_DELAY);
+    opl_synth_player.pause();
+    xSemaphoreGive(mus_lock);
+}
+
+void I_ResumeSong(int handle)
+{
+    if (!mus_inited)
+        return;
+    xSemaphoreTake(mus_lock, portMAX_DELAY);
+    opl_synth_player.resume();
+    xSemaphoreGive(mus_lock);
+}
+
+void I_StopSong(int handle)
+{
+    if (!mus_inited)
+        return;
+    xSemaphoreTake(mus_lock, portMAX_DELAY);
+    opl_synth_player.stop();
+    mus_playing = 0;
+    xSemaphoreGive(mus_lock);
+}
+
+void I_UnRegisterSong(int handle)
+{
+    if (!mus_inited)
+        return;
+    xSemaphoreTake(mus_lock, portMAX_DELAY);
+    if (mus_handle) {
+        opl_synth_player.stop();
+        opl_synth_player.unregistersong(mus_handle);
+        mus_handle = NULL;
+        free(mus_mididata);
+        mus_mididata = NULL;
+        mus_playing = 0;
+    }
+    xSemaphoreGive(mus_lock);
+}
+
+int I_RegisterMusic(const char *filename, musicinfo_t *song)
+{
+    return 1;  /* no filesystem music */
+}
+
+void I_SetMusicVolume(int volume)
+{
+    if (!mus_inited)
+        return;
+    xSemaphoreTake(mus_lock, portMAX_DELAY);
+    opl_synth_player.setvolume(volume);   /* both use the 0..15 scale */
+    xSemaphoreGive(mus_lock);
+}
