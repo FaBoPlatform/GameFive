@@ -6,7 +6,7 @@
  *     4:3 -> 240x180 and centered on the 240x320 panel (black bars).
  * 0 = landscape: full-screen 320x240, hold the console sideways.
  */
-#define DOOM_PORTRAIT 1
+#define DOOM_PORTRAIT 0
 
 /* Landscape only: 1 = image top toward the board's left edge; 0 = flip 180. */
 #define DOOM_ROTATE_CW 1
