@@ -38,5 +38,8 @@ bool store_is_installed(const store_game_t *g);
 /* True if ANY game is recorded as installed in ota_0. */
 bool store_has_game(void);
 
+/* 0 = not installed, 1 = update available, 2 = current version installed. */
+int store_installed_state(const store_game_t *g);
+
 /* Sets the boot partition to ota_0 and reboots into the game. */
 void store_boot_game(void);

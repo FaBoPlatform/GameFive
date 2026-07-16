@@ -197,6 +197,22 @@ bool store_is_installed(const store_game_t *g)
     return nvs_pair_matches("game_id", g->id, "game_ver", g->version);
 }
 
+/* 0 = not installed, 1 = installed but a newer version is in the store,
+ * 2 = this exact version installed */
+int store_installed_state(const store_game_t *g)
+{
+    if (store_is_installed(g))
+        return 2;
+    char a[32] = { 0 };
+    size_t la = sizeof(a);
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK)
+        return 0;
+    esp_err_t e = nvs_get_str(h, "game_id", a, &la);
+    nvs_close(h);
+    return (e == ESP_OK && !strcmp(a, g->id)) ? 1 : 0;
+}
+
 bool store_has_game(void)
 {
     char a[32];
@@ -211,9 +227,12 @@ bool store_has_game(void)
 
 esp_err_t store_install(const store_game_t *g, store_progress_cb progress)
 {
-    /* 1. assets (skip when unchanged — they can be several MB) */
+    /* 1. assets (skip when unchanged — they can be several MB). Identity is
+     * (game id, assets size) so a game-only update never re-downloads them. */
     if (g->assets_url[0]) {
-        if (!nvs_pair_matches("asset_id", g->id, "asset_ver", g->version)) {
+        char size_str[16];
+        snprintf(size_str, sizeof(size_str), "%d", g->assets_size);
+        if (!nvs_pair_matches("asset_id", g->id, "asset_ver", size_str)) {
             const esp_partition_t *ap = esp_partition_find_first(
                 (esp_partition_type_t)0x42, (esp_partition_subtype_t)0x06, NULL);
             if (!ap) {
@@ -237,7 +256,7 @@ esp_err_t store_install(const store_game_t *g, store_progress_cb progress)
             if ((int)pc.off != g->assets_size)
                 ESP_LOGW(TAG, "assets size mismatch: %u vs %d",
                          (unsigned)pc.off, g->assets_size);
-            nvs_set_pair("asset_id", g->id, "asset_ver", g->version);
+            nvs_set_pair("asset_id", g->id, "asset_ver", size_str);
         } else {
             ESP_LOGI(TAG, "assets unchanged, skipping");
         }

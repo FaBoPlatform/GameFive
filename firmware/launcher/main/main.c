@@ -188,8 +188,11 @@ static void menu_draw(int sel)
         uint16_t fg = (i == sel) ? C_SEL : C_TEXT;
         gf_lcd_text(8, y, (i == sel) ? ">" : " ", 2, C_SEL, C_BG);
         gf_lcd_text(28, y, g->title, 2, fg, C_BG);
-        if (store_is_installed(g))
+        int st = store_installed_state(g);
+        if (st == 2)
             gf_lcd_text(W - 30, y + 4, "OK", 1, C_OK, C_BG);
+        else if (st == 1)
+            gf_lcd_text(W - 36, y + 4, "UPD", 1, C_SEL, C_BG);
     }
     int y = 80 + s_index.count * 26;
     gf_lcd_text(8, y, (sel == s_index.count) ? ">" : " ", 2, C_SEL, C_BG);
