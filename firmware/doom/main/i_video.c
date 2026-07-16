@@ -61,6 +61,8 @@ int joyleft, joyright, joyup, joydown;
  *
  * In game:  up/down = move, left/right = STRAFE, hold B + left/right = turn,
  *           A = fire, START = use (open doors/walls), SELECT = open menu.
+ *           START held ~0.6s also opens the menu (fallback while the v1
+ *           board's SELECT line is broken).
  * In menu:  d-pad navigates, SELECT/A = confirm item, B = back/close.
  * Hold A+B+START ~2s anywhere -> back to the launcher.
  * (On unrepaired v1 boards the SELECT line is stuck — the BSP auto-enables
@@ -147,6 +149,22 @@ void I_StartTic(void)
 
     if (b & GF_KEY_START)
         cur |= 1 << VK_USE;
+
+    /* START held ~0.6s opens the menu — usable fallback while the SELECT
+     * line is physically broken on the v1 board (short press = use). */
+    static int start_hold;
+    if (!menu && (b & GF_KEY_START)) {
+        if (++start_hold == 21) {
+            event_t ev;
+            ev.type = ev_keydown;
+            ev.data1 = *vk_bind[VK_ESC];
+            D_PostEvent(&ev);
+            ev.type = ev_keyup;
+            D_PostEvent(&ev);
+        }
+    } else {
+        start_hold = 0;
+    }
 
     /* SELECT: resolved at press time (game: open menu / menu: confirm) and
      * held to that meaning until release, so opening the menu doesn't
