@@ -131,12 +131,31 @@ esp_err_t wifi_sta_connect(const char *ssid, const char *pass, int timeout_ms)
     return ESP_FAIL;
 }
 
-/* ---------------- SoftAP + web form ---------------- */
+/* ---------------- SoftAP + web form + live connect test ----------------
+ *
+ * The SSID field is a <select> filled ONLY from the device's own scan —
+ * the ESP32-S3 radio is 2.4GHz-only, so 5GHz networks can never appear.
+ * Submitting runs a connect test while the AP stays up (APSTA); the
+ * browser polls /status and sees success (then save+reboot) or the exact
+ * failure reason. The LCD mirrors the state via wifi_prov_status().
+ */
 
-static char s_scan_options[1200]; /* <option> list from a one-shot scan */
+static enum { PS_IDLE, PS_CONNECTING, PS_OK, PS_FAIL } s_pstate = PS_IDLE;
+static char s_pssid[33], s_ppass[65];
+static int s_pretries;
+static char s_status_lcd[48] = "waiting for phone...";
+
+const char *wifi_prov_status(void)
+{
+    return s_status_lcd;
+}
+
+static char s_scan_options[1200]; /* <option> list from the last scan */
 
 static void scan_networks(void)
 {
+    if (s_pstate == PS_CONNECTING)
+        return;
     wifi_scan_config_t sc = { 0 };
     if (esp_wifi_scan_start(&sc, true) != ESP_OK)
         return;
@@ -146,13 +165,44 @@ static void scan_networks(void)
         return;
     char *p = s_scan_options;
     char *end = s_scan_options + sizeof(s_scan_options) - 1;
-    for (int i = 0; i < n && p < end - 64; i++) {
+    for (int i = 0; i < n && p < end - 80; i++) {
         if (recs[i].ssid[0] == '\0')
             continue;
-        p += snprintf(p, end - p, "<option value=\"%s\">", recs[i].ssid);
+        int dup = 0; /* same SSID broadcast by several APs */
+        for (int j = 0; j < i; j++)
+            if (!strcmp((char *)recs[i].ssid, (char *)recs[j].ssid))
+                dup = 1;
+        if (dup)
+            continue;
+        p += snprintf(p, end - p, "<option>%s</option>", recs[i].ssid);
     }
     *p = '\0';
     ESP_LOGI(TAG, "scanned %d networks", n);
+}
+
+static void prov_event(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+        wifi_event_sta_disconnected_t *d = data;
+        s_last_reason = d ? d->reason : 0;
+        if (s_pstate == PS_CONNECTING) {
+            if (s_pretries++ < 4) {
+                esp_wifi_connect();
+            } else {
+                s_pstate = PS_FAIL;
+                snprintf(s_status_lcd, sizeof(s_status_lcd), "FAILED: %s",
+                         wifi_fail_hint()[0] ? wifi_fail_hint() : "no link");
+                ESP_LOGW(TAG, "prov connect failed, reason=%d", s_last_reason);
+            }
+        }
+    } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
+        if (s_pstate == PS_CONNECTING) {
+            s_pstate = PS_OK;
+            wifi_creds_save(s_pssid, s_ppass);
+            snprintf(s_status_lcd, sizeof(s_status_lcd), "CONNECTED! rebooting");
+            ESP_LOGI(TAG, "prov connect OK, creds saved");
+        }
+    }
 }
 
 static esp_err_t root_get(httpd_req_t *req)
@@ -172,26 +222,85 @@ static esp_err_t root_get(httpd_req_t *req)
         return httpd_resp_send(req, NULL, 0);
     }
 
-    static char page[2200];
+    static char page[2600];
     snprintf(page, sizeof(page),
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         "<title>Game Five WiFi Setup</title>"
         "<style>body{font-family:sans-serif;margin:2em;background:#111;color:#eee}"
-        "input,button{font-size:1.2em;padding:.4em;width:100%%;box-sizing:border-box;"
-        "margin:.3em 0}button{background:#e33;color:#fff;border:0;padding:.6em}"
-        "h1{color:#e33}</style></head><body>"
+        "select,input,button{font-size:1.2em;padding:.4em;width:100%%;"
+        "box-sizing:border-box;margin:.3em 0}"
+        "button{background:#e33;color:#fff;border:0;padding:.6em}"
+        "h1{color:#e33}a{color:#8cf}small{color:#999}</style></head><body>"
         "<h1>GAME FIVE</h1><p>WiFi setup</p>"
         "<form method='POST' action='/save'>"
-        "<label>Network (SSID)</label>"
-        "<input name='ssid' list='nets' required maxlength='32'>"
-        "<datalist id='nets'>%s</datalist>"
+        "<label>Network (2.4GHz only)</label>"
+        "<select name='ssid' required>%s</select>"
+        "<small>List shows only networks this console can use. "
+        "<a href='/rescan'>Rescan</a></small>"
         "<label>Password</label>"
         "<input name='pass' type='password' maxlength='64'>"
-        "<button type='submit'>Save &amp; Reboot</button></form>"
+        "<button type='submit'>Connect</button></form>"
         "</body></html>", s_scan_options);
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t rescan_get(httpd_req_t *req)
+{
+    scan_networks();
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", "/");
+    return httpd_resp_send(req, NULL, 0);
+}
+
+static esp_err_t status_get(httpd_req_t *req)
+{
+    static char page[1200];
+    const char *body;
+    char fail[300];
+
+    switch (s_pstate) {
+    case PS_CONNECTING:
+        body = "<meta http-equiv='refresh' content='2'>"
+               "<h1 style='color:#fc0'>Connecting...</h1>"
+               "<p>Testing the connection. This page refreshes "
+               "automatically.</p>";
+        break;
+    case PS_OK:
+        body = "<h1 style='color:#4c4'>Connected!</h1>"
+               "<p>Settings saved. Game Five is rebooting into the game "
+               "store. You can close this page.</p>";
+        break;
+    case PS_FAIL:
+        snprintf(fail, sizeof(fail),
+                 "<h1 style='color:#e33'>Connection failed</h1>"
+                 "<p><b>%s</b></p><p><a href='/'>Back to setup</a></p>",
+                 wifi_fail_hint()[0] ? wifi_fail_hint()
+                                     : "Could not reach the network.");
+        body = fail;
+        break;
+    default:
+        httpd_resp_set_status(req, "302 Found");
+        httpd_resp_set_hdr(req, "Location", "/");
+        return httpd_resp_send(req, NULL, 0);
+    }
+
+    snprintf(page, sizeof(page),
+        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<title>Game Five WiFi Setup</title>"
+        "<style>body{font-family:sans-serif;margin:2em;background:#111;"
+        "color:#eee}a{color:#8cf}</style></head><body>%s</body></html>",
+        body);
+    httpd_resp_set_type(req, "text/html");
+    esp_err_t err = httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
+
+    if (s_pstate == PS_OK) {
+        vTaskDelay(pdMS_TO_TICKS(1500));
+        esp_restart();
+    }
+    return err;
 }
 
 static int url_decode(char *s)
@@ -244,18 +353,25 @@ static esp_err_t save_post(httpd_req_t *req)
     }
     form_field(body, "pass", pass, sizeof(pass));
 
-    wifi_creds_save(ssid, pass);
-    ESP_LOGI(TAG, "saved creds for %s, rebooting", ssid);
+    /* start the connect test — creds are saved only on success */
+    strlcpy(s_pssid, ssid, sizeof(s_pssid));
+    strlcpy(s_ppass, pass, sizeof(s_ppass));
+    s_pretries = 0;
+    s_last_reason = 0;
+    snprintf(s_status_lcd, sizeof(s_status_lcd), "connecting: %s", ssid);
+    ESP_LOGI(TAG, "prov connect test: %s", ssid);
 
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req,
-        "<html><body style='font-family:sans-serif;background:#111;color:#eee'>"
-        "<h1 style='color:#e33'>Saved!</h1><p>Game Five is rebooting and will "
-        "connect to your WiFi.</p></body></html>", HTTPD_RESP_USE_STRLEN);
+    wifi_config_t wc = { 0 };
+    strlcpy((char *)wc.sta.ssid, ssid, sizeof(wc.sta.ssid));
+    strlcpy((char *)wc.sta.password, pass, sizeof(wc.sta.password));
+    esp_wifi_set_config(WIFI_IF_STA, &wc);
+    s_pstate = PS_CONNECTING;
+    esp_wifi_disconnect();
+    esp_wifi_connect();
 
-    vTaskDelay(pdMS_TO_TICKS(1500));
-    esp_restart();
-    return ESP_OK;
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", "/status");
+    return httpd_resp_send(req, NULL, 0);
 }
 
 void wifi_provisioning_start(void)
@@ -267,6 +383,12 @@ void wifi_provisioning_start(void)
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    esp_event_handler_instance_t h1, h2;
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(
+        WIFI_EVENT, ESP_EVENT_ANY_ID, &prov_event, NULL, &h1));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(
+        IP_EVENT, IP_EVENT_STA_GOT_IP, &prov_event, NULL, &h2));
 
     wifi_config_t ap = { 0 };
     strlcpy((char *)ap.ap.ssid, GF_PROV_AP_SSID, sizeof(ap.ap.ssid));
@@ -284,13 +406,22 @@ void wifi_provisioning_start(void)
     httpd_config_t hc = HTTPD_DEFAULT_CONFIG();
     hc.uri_match_fn = httpd_uri_match_wildcard;
     ESP_ERROR_CHECK(httpd_start(&server, &hc));
-    httpd_uri_t u_save = { .uri = "/save", .method = HTTP_POST, .handler = save_post };
-    httpd_uri_t u_save2 = { .uri = "/*", .method = HTTP_POST, .handler = save_post };
-    httpd_uri_t u_root = { .uri = "/*", .method = HTTP_GET, .handler = root_get };
+    static httpd_uri_t u_save = { .uri = "/save", .method = HTTP_POST,
+                                  .handler = save_post };
+    static httpd_uri_t u_save2 = { .uri = "/*", .method = HTTP_POST,
+                                   .handler = save_post };
+    static httpd_uri_t u_status = { .uri = "/status", .method = HTTP_GET,
+                                    .handler = status_get };
+    static httpd_uri_t u_rescan = { .uri = "/rescan", .method = HTTP_GET,
+                                    .handler = rescan_get };
+    static httpd_uri_t u_root = { .uri = "/*", .method = HTTP_GET,
+                                  .handler = root_get };
     httpd_register_uri_handler(server, &u_save);
     httpd_register_uri_handler(server, &u_save2);
+    httpd_register_uri_handler(server, &u_status);
+    httpd_register_uri_handler(server, &u_rescan);
     httpd_register_uri_handler(server, &u_root);
 
     ESP_LOGI(TAG, "provisioning AP '%s' up at %s", GF_PROV_AP_SSID, GF_PROV_URL);
-    /* save_post reboots the device; the caller keeps its own key loop */
+    /* /status reboots on success; the caller keeps its own key loop */
 }

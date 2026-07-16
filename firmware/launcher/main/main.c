@@ -129,11 +129,22 @@ static void screen_provisioning(void)
 
     wifi_provisioning_start();
 
-    /* the web form reboots on save; START escapes to the installed game */
+    /* /status reboots on success; START escapes to the installed game.
+     * Mirror the provisioning state (connecting / failed reason) on the
+     * LCD status line. */
+    char last_status[48] = "";
     for (;;) {
         uint8_t e = keys_edges();
         if ((e & GF_KEY_START) && store_has_game())
             store_boot_game(); /* reboots */
+
+        const char *st = wifi_prov_status();
+        if (strcmp(st, last_status) != 0) {
+            strlcpy(last_status, st, sizeof(last_status));
+            gf_lcd_fill_rect(0, 286, W, 14, C_BG);
+            ui_center(286, st, 1,
+                      strstr(st, "FAILED") ? C_TITLE : C_OK);
+        }
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }

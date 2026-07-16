@@ -24,3 +24,6 @@ void wifi_provisioning_start(void);
 
 /* Human-readable hint for the last STA connect failure ("" if none). */
 const char *wifi_fail_hint(void);
+
+/* Short status line for the LCD while provisioning is active. */
+const char *wifi_prov_status(void);
