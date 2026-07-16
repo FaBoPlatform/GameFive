@@ -59,11 +59,12 @@ int joyleft, joyright, joyup, joydown;
 
 /* ---------------- input: 74HC165 buttons -> D_PostEvent ----------------
  *
- * 7 usable buttons (SELECT is dead on the v1 board — stuck register line):
  * In game:  up/down = move, left/right = STRAFE, hold B + left/right = turn,
- *           A = fire, START = use (open doors/walls), B TAP = open menu.
- * In menu:  d-pad navigates, A = confirm item, B = back/close.
+ *           A = fire, START = use (open doors/walls), SELECT = open menu.
+ * In menu:  d-pad navigates, SELECT/A = confirm item, B = back/close.
  * Hold A+B+START ~2s anywhere -> back to the launcher.
+ * (On unrepaired v1 boards the SELECT line is stuck — the BSP auto-enables
+ * it once the line is seen healthy.)
  */
 
 extern boolean menuactive; /* m_menu.c */
@@ -123,10 +124,6 @@ void I_StartTic(void)
     if (b & GF_KEY_DOWN)
         cur |= 1 << VK_BACK;
 
-    /* B tap (short press, no arrows used) opens the menu */
-    static int b_hold, b_used;
-    int open_menu_pulse = 0;
-
     if (menu) {
         /* raw arrows navigate the menu */
         if (b & GF_KEY_LEFT)
@@ -137,8 +134,6 @@ void I_StartTic(void)
             cur |= 1 << VK_ENTER; /* confirm item */
         if (b & GF_KEY_B)
             cur |= 1 << VK_ESC;   /* back / close */
-        b_hold = 0;
-        b_used = 1; /* don't let a menu-closing B release re-open it */
     } else {
         /* left/right strafe; hold B to turn instead */
         if (b & GF_KEY_LEFT)
@@ -148,32 +143,23 @@ void I_StartTic(void)
 
         if (b & GF_KEY_A)
             cur |= 1 << VK_FIRE;
-
-        if (b & GF_KEY_B) {
-            if (b_hold == 0)
-                b_used = 0;
-            b_hold++;
-            if (b & (GF_KEY_LEFT | GF_KEY_RIGHT))
-                b_used = 1;
-        } else {
-            if (b_hold > 0 && b_hold <= 14 && !b_used)
-                open_menu_pulse = 1; /* ~0.4s tap */
-            b_hold = 0;
-        }
     }
 
     if (b & GF_KEY_START)
         cur |= 1 << VK_USE;
 
+    /* SELECT: resolved at press time (game: open menu / menu: confirm) and
+     * held to that meaning until release, so opening the menu doesn't
+     * instantly confirm the first item */
+    static int sel_vk = -1;
+    if ((b & GF_KEY_SELECT) && sel_vk < 0)
+        sel_vk = menu ? VK_ENTER : VK_ESC;
+    if (!(b & GF_KEY_SELECT))
+        sel_vk = -1;
+    if (sel_vk >= 0)
+        cur |= 1 << sel_vk;
+
     static uint16_t prev;
-    if (open_menu_pulse) {
-        event_t ev;
-        ev.type = ev_keydown;
-        ev.data1 = *vk_bind[VK_ESC];
-        D_PostEvent(&ev);
-        ev.type = ev_keyup;
-        D_PostEvent(&ev);
-    }
     if (cur == prev)
         return;
     event_t ev;

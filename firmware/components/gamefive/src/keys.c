@@ -97,6 +97,14 @@ uint8_t gf_keys_read(uint8_t *raw_out)
     uint8_t sample = (uint8_t)~raw; /* 1 = pressed, bit0=A=UP .. bit7=H=SELECT */
 #if GF_KEYS_BIT_SHIFT
     sample >>= GF_KEYS_BIT_SHIFT; /* v1 board: realign off-by-one wiring */
+    /* SELECT drives raw input A (bit0), which idles LOW (stuck) on
+     * unrepaired v1 boards. Enable it only after the line has been seen
+     * released once (healthy line idles high, press pulls it low). */
+    static bool s_sel_line_ok;
+    if (raw & 0x01)
+        s_sel_line_ok = true;
+    else if (s_sel_line_ok)
+        sample |= GF_KEY_SELECT;
 #endif
     if (sample == s_last) {
         s_stable = sample;
