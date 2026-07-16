@@ -21,11 +21,11 @@
 #define GF_LCD_PCLK_HZ     (40 * 1000 * 1000)
 
 /*
- * Screen orientation. Confirmed on hardware: the panel scan direction is
- * already upright for the player as mounted (FPC at the top), so no flip
- * is applied. Set to 1 if your module shows everything upside down.
+ * Screen orientation. Set to 1 if your module shows everything upside down.
+ * The current display unit (HS20HS072RX 2025.12 batch, as mounted) needs
+ * the 180 flip — confirmed 2026-07-10 on the launcher and DOOM.
  */
-#define GF_LCD_ROTATE_180  0
+#define GF_LCD_ROTATE_180  1
 
 /*
  * Some ST7789 modules (most IPS variants) need color inversion enabled.

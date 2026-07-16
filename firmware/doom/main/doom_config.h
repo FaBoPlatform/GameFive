@@ -8,9 +8,9 @@
  */
 #define DOOM_PORTRAIT 1
 
-/* Portrait only: 1 = rotate 180 (flip both axes) if the image is upside
- * down as the module is mounted. */
-#define DOOM_PORTRAIT_FLIP 1
+/* Portrait only: 1 = extra 180 flip on top of the BSP's GF_LCD_ROTATE_180.
+ * The BSP now carries the panel's base orientation — keep this 0. */
+#define DOOM_PORTRAIT_FLIP 0
 
 /* Landscape only: 1 = image top toward the board's left edge; 0 = flip 180. */
 #define DOOM_ROTATE_CW 1
