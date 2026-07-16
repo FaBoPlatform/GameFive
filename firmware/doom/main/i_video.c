@@ -107,9 +107,24 @@ void I_StartTic(void)
                 raw, now);
     }
 
+    /* heartbeat: prove the poll loop is alive and show the live raw value
+     * every ~2 s even with no key change */
+    static int hb;
+    if (++hb >= 70) {
+        hb = 0;
+        lprintf(LO_INFO, "keys-hb: raw=%02x now=%02x\n", raw, now);
+    }
+
     check_exit_combo(now);
     if (now == prev)
         return;
+
+    /* key-event diagnostic: log the first 30 state transitions */
+    static int ev_logged;
+    if (ev_logged < 30) {
+        ev_logged++;
+        lprintf(LO_INFO, "keys: %02x -> %02x (raw=%02x)\n", prev, now, raw);
+    }
 
     event_t ev;
     for (int i = 0; keymap[i].key != NULL; i++) {

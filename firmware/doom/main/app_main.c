@@ -14,6 +14,7 @@
 #include "esp_log.h"
 #include "esp_partition.h"
 #include "esp_lcd_panel_ops.h"
+#include "driver/gpio.h"
 #include "lcd.h"
 #include "keys.h"
 
@@ -66,6 +67,10 @@ void app_main(void)
 #endif
 
     ESP_ERROR_CHECK(gf_keys_init());
+    /* diagnostic: weak pulldown on MISO. If the 74HC165 chain is fitted it
+     * actively drives the line (reads stay 0xff idle); if the XIAO is bare
+     * the floating line is dragged low and raw reads 0x00. */
+    gpio_pulldown_en(8);
     gf_lcd_backlight(100);
 
     /* prboom has deep BSP recursion — keep the big internal stack */
