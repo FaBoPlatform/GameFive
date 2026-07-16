@@ -57,31 +57,34 @@ int use_doublebuffer = 0;
 int usejoystick = 0;
 int joyleft, joyright, joyup, joydown;
 
-/* ---------------- input: 74HC165 buttons -> D_PostEvent ---------------- */
+/* ---------------- input: 74HC165 buttons -> D_PostEvent ----------------
+ *
+ * 7 usable buttons (SELECT is dead on the v1 board — stuck register line):
+ * In game:  up/down = move, left/right = STRAFE, hold B + left/right = turn,
+ *           A = fire, START = use (open doors/walls), B TAP = open menu.
+ * In menu:  d-pad navigates, A = confirm item, B = back/close.
+ * Hold A+B+START ~2s anywhere -> back to the launcher.
+ */
 
-typedef struct {
-    uint8_t mask;
-    int *key; /* prboom runtime key binding variable */
-} KeyMap;
+extern boolean menuactive; /* m_menu.c */
 
-static const KeyMap keymap[] = {
-    { GF_KEY_UP,     &key_up },
-    { GF_KEY_DOWN,   &key_down },
-    { GF_KEY_LEFT,   &key_left },
-    { GF_KEY_RIGHT,  &key_right },
-    { GF_KEY_A,      &key_fire },       /* A posts both fire and menu-enter */
-    { GF_KEY_A,      &key_menu_enter },
-    { GF_KEY_B,      &key_use },
-    { GF_KEY_START,  &key_escape },     /* menu open/close */
-    { GF_KEY_SELECT, &key_map },        /* automap */
-    { 0, NULL },
+enum {
+    VK_FWD, VK_BACK, VK_TURN_L, VK_TURN_R, VK_STRAFE_L, VK_STRAFE_R,
+    VK_FIRE, VK_USE, VK_ESC, VK_ENTER, VK_COUNT
 };
 
-/* hold B+START ~2s -> back to the launcher (factory partition) */
+static int *const vk_bind[VK_COUNT] = {
+    &key_up, &key_down, &key_left, &key_right,
+    &key_strafeleft, &key_straferight,
+    &key_fire, &key_use, &key_escape, &key_menu_enter,
+};
+
+/* hold A+B+START ~2s -> back to the launcher (factory partition) */
 static void check_exit_combo(uint8_t held)
 {
     static int count;
-    if ((held & (GF_KEY_B | GF_KEY_START)) == (GF_KEY_B | GF_KEY_START)) {
+    if ((held & (GF_KEY_A | GF_KEY_B | GF_KEY_START))
+        == (GF_KEY_A | GF_KEY_B | GF_KEY_START)) {
         if (++count >= 70) { /* 35 tics/s */
             const esp_partition_t *factory = esp_partition_find_first(
                 ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY,
@@ -96,45 +99,92 @@ static void check_exit_combo(uint8_t held)
 
 void I_StartTic(void)
 {
-    static uint8_t prev;
     uint8_t raw;
-    uint8_t now = gf_keys_read(&raw) & (uint8_t)~KEYS_IGNORE_MASK;
+    uint8_t b = gf_keys_read(&raw) & (uint8_t)~KEYS_IGNORE_MASK;
 
-    static int logged;
-    if (!logged) {
-        logged = 1;
-        lprintf(LO_INFO, "I_StartTic: first keys raw=0x%02x masked=0x%02x\n",
-                raw, now);
+    /* calibration log: every button-state change (physical wiring on the
+     * old board maps buttons to unexpected register bits — measure it) */
+    static uint8_t log_prev;
+    static int log_count;
+    if (b != log_prev && log_count < 100) {
+        log_count++;
+        lprintf(LO_INFO, "keys: 0x%02x -> 0x%02x (raw=0x%02x)\n",
+                log_prev, b, raw);
+        log_prev = b;
     }
 
-    /* heartbeat: prove the poll loop is alive and show the live raw value
-     * every ~2 s even with no key change */
-    static int hb;
-    if (++hb >= 70) {
-        hb = 0;
-        lprintf(LO_INFO, "keys-hb: raw=%02x now=%02x\n", raw, now);
+    check_exit_combo(b);
+
+    int menu = menuactive;
+    uint16_t cur = 0;
+
+    if (b & GF_KEY_UP)
+        cur |= 1 << VK_FWD;
+    if (b & GF_KEY_DOWN)
+        cur |= 1 << VK_BACK;
+
+    /* B tap (short press, no arrows used) opens the menu */
+    static int b_hold, b_used;
+    int open_menu_pulse = 0;
+
+    if (menu) {
+        /* raw arrows navigate the menu */
+        if (b & GF_KEY_LEFT)
+            cur |= 1 << VK_TURN_L;
+        if (b & GF_KEY_RIGHT)
+            cur |= 1 << VK_TURN_R;
+        if (b & GF_KEY_A)
+            cur |= 1 << VK_ENTER; /* confirm item */
+        if (b & GF_KEY_B)
+            cur |= 1 << VK_ESC;   /* back / close */
+        b_hold = 0;
+        b_used = 1; /* don't let a menu-closing B release re-open it */
+    } else {
+        /* left/right strafe; hold B to turn instead */
+        if (b & GF_KEY_LEFT)
+            cur |= 1 << ((b & GF_KEY_B) ? VK_TURN_L : VK_STRAFE_L);
+        if (b & GF_KEY_RIGHT)
+            cur |= 1 << ((b & GF_KEY_B) ? VK_TURN_R : VK_STRAFE_R);
+
+        if (b & GF_KEY_A)
+            cur |= 1 << VK_FIRE;
+
+        if (b & GF_KEY_B) {
+            if (b_hold == 0)
+                b_used = 0;
+            b_hold++;
+            if (b & (GF_KEY_LEFT | GF_KEY_RIGHT))
+                b_used = 1;
+        } else {
+            if (b_hold > 0 && b_hold <= 14 && !b_used)
+                open_menu_pulse = 1; /* ~0.4s tap */
+            b_hold = 0;
+        }
     }
 
-    check_exit_combo(now);
-    if (now == prev)
+    if (b & GF_KEY_START)
+        cur |= 1 << VK_USE;
+
+    static uint16_t prev;
+    if (open_menu_pulse) {
+        event_t ev;
+        ev.type = ev_keydown;
+        ev.data1 = *vk_bind[VK_ESC];
+        D_PostEvent(&ev);
+        ev.type = ev_keyup;
+        D_PostEvent(&ev);
+    }
+    if (cur == prev)
         return;
-
-    /* key-event diagnostic: log the first 30 state transitions */
-    static int ev_logged;
-    if (ev_logged < 30) {
-        ev_logged++;
-        lprintf(LO_INFO, "keys: %02x -> %02x (raw=%02x)\n", prev, now, raw);
-    }
-
     event_t ev;
-    for (int i = 0; keymap[i].key != NULL; i++) {
-        if ((prev ^ now) & keymap[i].mask) {
-            ev.type = (now & keymap[i].mask) ? ev_keydown : ev_keyup;
-            ev.data1 = *keymap[i].key;
+    for (int k = 0; k < VK_COUNT; k++) {
+        if ((prev ^ cur) & (1 << k)) {
+            ev.type = (cur & (1 << k)) ? ev_keydown : ev_keyup;
+            ev.data1 = *vk_bind[k];
             D_PostEvent(&ev);
         }
     }
-    prev = now;
+    prev = cur;
 }
 
 /* ---------------------------- graphics --------------------------------- */

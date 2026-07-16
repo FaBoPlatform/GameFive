@@ -95,6 +95,9 @@ uint8_t gf_keys_read(uint8_t *raw_out)
      * bounce and noise from a floating/unfitted shift register. */
     static uint8_t s_stable = 0, s_last = 0xEE; /* 0xEE: impossible first value */
     uint8_t sample = (uint8_t)~raw; /* 1 = pressed, bit0=A=UP .. bit7=H=SELECT */
+#if GF_KEYS_BIT_SHIFT
+    sample >>= GF_KEYS_BIT_SHIFT; /* v1 board: realign off-by-one wiring */
+#endif
     if (sample == s_last) {
         s_stable = sample;
     }

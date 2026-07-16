@@ -35,6 +35,16 @@
  */
 #define GF_LCD_INVERT      1
 
+/*
+ * HandyGame v1 board: the button column is wired one 74HC165 input off —
+ * each button lands on input N+1 (UP→B, ... START→H), input A is stuck low,
+ * and SELECT drives that dead input A. Shifting the sample right by one
+ * realigns every button with its silkscreen; SELECT then always reads
+ * released (7 usable buttons). Set to 0 for correctly-wired boards (rev.2+).
+ * Verified 2026-07-10 with the hwtest key screen.
+ */
+#define GF_KEYS_BIT_SHIFT  1
+
 /* ---- Backlight: SI2302 low-side NMOS, PWM, active high ---- */
 #define GF_PIN_LCD_BL      5   /* XIAO D4 */
 

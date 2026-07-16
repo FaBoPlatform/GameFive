@@ -52,6 +52,9 @@ void app_main(void)
     gf_lcd_clear(GF_BLACK); /* clear in portrait before any rotation */
 
     esp_lcd_panel_handle_t panel = (esp_lcd_panel_handle_t)gf_lcd_panel();
+#if DOOM_PORTRAIT && DOOM_PORTRAIT_FLIP
+    ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel, true, true));
+#endif
 #if !DOOM_PORTRAIT
     /* landscape: full-screen 320x240, hold the console sideways */
     ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel, true));
