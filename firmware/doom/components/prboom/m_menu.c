@@ -936,9 +936,9 @@ void M_SaveGame (int choice)
 
 enum
 {
-  general, // killough 10/98
-  // killough 4/6/98: move setup to be a sub-menu of OPTIONs
-  setup,                                                    // phares 3/21/98
+  // Game Five: general/setup removed — their prboom.wad patches are absent
+  // (items rendered invisible and crashed when entered) and they made the
+  // skull cursor look two rows off against the visible items.
   endgame,
   messages,
   /*    detail, obsolete -- killough */
@@ -955,12 +955,8 @@ enum
 
 menuitem_t OptionsMenu[]=
 {
-  // killough 4/6/98: move setup to be a sub-menu of OPTIONs
-  // Game Five: general/setup keep empty names (their patches live only in
-  // prboom.wad); vanilla item patches restored — the merged doom1 wad has
-  // them all.
-  {1,"", M_General, 'g'},      // killough 10/98
-  {1,"",  M_Setup,   's'},                          // phares 3/21/98
+  // Game Five: vanilla item patches restored (the merged doom1 wad has
+  // them); general/setup dropped — see options_e note.
   {1,"M_ENDGAM", M_EndGame,'e'},
   {1,"M_MESSG",  M_ChangeMessages,'m'},
   /*    {1,"M_DETAIL",  M_ChangeDetail,'g'},  unused -- killough */
@@ -1001,10 +997,17 @@ void M_DrawOptions(void)
   M_DrawThermo(OptionsDef.x,OptionsDef.y+LINEHEIGHT*(scrnsize+1),
    9,screenSize);
 
-  // Game Five: one-touch sound toggle
-  M_WriteText(OptionsDef.x, OptionsDef.y+LINEHEIGHT*sndtoggle+4, "SOUND:");
-  V_DrawNamePatch(OptionsDef.x + 64, OptionsDef.y+LINEHEIGHT*sndtoggle, 0,
-      msgNames[snd_SfxVolume > 0], CR_DEFAULT, VPT_STRETCH);
+  // Game Five: one-touch sound toggle. Patches draw with transparency, so
+  // erase the state area first (VPT_STRETCH maps 200-line y to 240 lines).
+  {
+    int tx = OptionsDef.x + 64;
+    int ty = OptionsDef.y + LINEHEIGHT * sndtoggle;
+    V_FillRect(0, tx * SCREENWIDTH / 320, ty * SCREENHEIGHT / 200,
+               70 * SCREENWIDTH / 320, LINEHEIGHT * SCREENHEIGHT / 200, 0);
+    M_WriteText(OptionsDef.x, ty + 4, "SOUND:");
+    V_DrawNamePatch(tx, ty, 0, msgNames[snd_SfxVolume > 0], CR_DEFAULT,
+                    VPT_STRETCH);
+  }
 }
 
 // Game Five: toggle SFX on/off, remembering the previous volume
