@@ -217,6 +217,7 @@ void M_QuitDOOM(int choice);
 void M_ChangeMessages(int choice);
 void M_ChangeSensitivity(int choice);
 void M_SfxVol(int choice);
+void M_SoundToggle(int choice); // Game Five
 void M_MusicVol(int choice);
 /* void M_ChangeDetail(int choice);  unused -- killough */
 void M_SizeDisplay(int choice);
@@ -946,6 +947,7 @@ enum
   mousesens,
   /* option_empty2, submenu now -- killough */
   soundvol,
+  sndtoggle, // Game Five: one-touch sound on/off
   opt_end
 } options_e;
 
@@ -954,16 +956,20 @@ enum
 menuitem_t OptionsMenu[]=
 {
   // killough 4/6/98: move setup to be a sub-menu of OPTIONs
+  // Game Five: general/setup keep empty names (their patches live only in
+  // prboom.wad); vanilla item patches restored — the merged doom1 wad has
+  // them all.
   {1,"", M_General, 'g'},      // killough 10/98
   {1,"",  M_Setup,   's'},                          // phares 3/21/98
-  {1,"", M_EndGame,'e'},
-  {1,"",  M_ChangeMessages,'m'},
+  {1,"M_ENDGAM", M_EndGame,'e'},
+  {1,"M_MESSG",  M_ChangeMessages,'m'},
   /*    {1,"M_DETAIL",  M_ChangeDetail,'g'},  unused -- killough */
-  {2,"", M_SizeDisplay,'s'},
+  {2,"M_SCRNSZ", M_SizeDisplay,'s'},
   {-1,"",0},
-  {1,"",  M_ChangeSensitivity,'m'},
+  {1,"M_MSENS",  M_ChangeSensitivity,'m'},
   /* {-1,"",0},  replaced with submenu -- killough */
-  {1,"",   M_Sound,'s'}
+  {1,"M_SVOL",   M_Sound,'s'},
+  {1,"",   M_SoundToggle,'o'} // Game Five: SOUND: ON/OFF (text-drawn)
 };
 
 menu_t OptionsDef =
@@ -994,6 +1000,25 @@ void M_DrawOptions(void)
 
   M_DrawThermo(OptionsDef.x,OptionsDef.y+LINEHEIGHT*(scrnsize+1),
    9,screenSize);
+
+  // Game Five: one-touch sound toggle
+  M_WriteText(OptionsDef.x, OptionsDef.y+LINEHEIGHT*sndtoggle+4, "SOUND:");
+  V_DrawNamePatch(OptionsDef.x + 64, OptionsDef.y+LINEHEIGHT*sndtoggle, 0,
+      msgNames[snd_SfxVolume > 0], CR_DEFAULT, VPT_STRETCH);
+}
+
+// Game Five: toggle SFX on/off, remembering the previous volume
+void M_SoundToggle(int choice)
+{
+  static int saved_vol = 8;
+
+  if (snd_SfxVolume > 0) {
+    saved_vol = snd_SfxVolume;
+    snd_SfxVolume = 0;
+  } else {
+    snd_SfxVolume = saved_vol > 0 ? saved_vol : 8;
+  }
+  S_SetSfxVolume(snd_SfxVolume);
 }
 
 void M_Options(int choice)
