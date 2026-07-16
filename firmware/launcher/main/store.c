@@ -197,6 +197,18 @@ bool store_is_installed(const store_game_t *g)
     return nvs_pair_matches("game_id", g->id, "game_ver", g->version);
 }
 
+bool store_has_game(void)
+{
+    char a[32];
+    size_t la = sizeof(a);
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK)
+        return false;
+    esp_err_t e = nvs_get_str(h, "game_id", a, &la);
+    nvs_close(h);
+    return e == ESP_OK && a[0] != '\0';
+}
+
 esp_err_t store_install(const store_game_t *g, store_progress_cb progress)
 {
     /* 1. assets (skip when unchanged — they can be several MB) */

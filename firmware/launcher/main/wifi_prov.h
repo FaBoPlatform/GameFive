@@ -17,9 +17,10 @@ void wifi_creds_clear(void);
  * Returns ESP_OK once got an IP. */
 esp_err_t wifi_sta_connect(const char *ssid, const char *pass, int timeout_ms);
 
-/* Starts the SoftAP + web form. Blocks forever: when the user submits the
- * form, credentials are saved to NVS and the device REBOOTS. */
-void wifi_provisioning_run(void);
+/* Starts the SoftAP + web form and returns; the caller keeps its own loop.
+ * When the user submits the form, credentials are saved to NVS and the
+ * device REBOOTS. */
+void wifi_provisioning_start(void);
 
 /* Human-readable hint for the last STA connect failure ("" if none). */
 const char *wifi_fail_hint(void);

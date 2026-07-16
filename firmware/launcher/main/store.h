@@ -35,5 +35,8 @@ esp_err_t store_install(const store_game_t *g, store_progress_cb progress);
 /* True if this exact game id+version is recorded as installed in ota_0. */
 bool store_is_installed(const store_game_t *g);
 
+/* True if ANY game is recorded as installed in ota_0. */
+bool store_has_game(void);
+
 /* Sets the boot partition to ota_0 and reboots into the game. */
 void store_boot_game(void);

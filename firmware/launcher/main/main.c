@@ -18,9 +18,9 @@
 
 static const char *TAG = "launcher";
 
-/* Old-prototype board: UP and SELECT lines are stuck low — mask them and
- * navigate with LEFT/RIGHT/DOWN. Set to 0 for rev.1+ boards. */
-#define LAUNCHER_OLDBOARD_COMPAT 1
+/* The BSP's GF_KEYS_BIT_SHIFT remap handles the v1 board wiring now;
+ * set to 1 only if a board needs extra key masking. */
+#define LAUNCHER_OLDBOARD_COMPAT 0
 
 #if LAUNCHER_OLDBOARD_COMPAT
 #define KEYS_IGNORE ((uint8_t)(GF_KEY_UP | GF_KEY_SELECT))
@@ -112,7 +112,18 @@ static void screen_provisioning(void)
     gf_lcd_text(24, 186, GF_PROV_URL, 1, C_OK, C_BG);
     gf_lcd_text(12, 210, "3. Enter your WiFi and", 1, C_TEXT, C_BG);
     gf_lcd_text(24, 226, "save. I will reboot.", 1, C_TEXT, C_BG);
-    wifi_provisioning_run(); /* never returns */
+    if (store_has_game())
+        ui_center(260, "START: back to game", 1, C_SEL);
+
+    wifi_provisioning_start();
+
+    /* the web form reboots on save; START escapes to the installed game */
+    for (;;) {
+        uint8_t e = keys_edges();
+        if ((e & GF_KEY_START) && store_has_game())
+            store_boot_game(); /* reboots */
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
 }
 
 static void screen_wifi_failed(const char *ssid)

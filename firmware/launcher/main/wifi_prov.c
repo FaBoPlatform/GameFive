@@ -258,7 +258,7 @@ static esp_err_t save_post(httpd_req_t *req)
     return ESP_OK;
 }
 
-void wifi_provisioning_run(void)
+void wifi_provisioning_start(void)
 {
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -292,7 +292,5 @@ void wifi_provisioning_run(void)
     httpd_register_uri_handler(server, &u_root);
 
     ESP_LOGI(TAG, "provisioning AP '%s' up at %s", GF_PROV_AP_SSID, GF_PROV_URL);
-    /* save_post reboots; nothing to do here */
-    for (;;)
-        vTaskDelay(pdMS_TO_TICKS(1000));
+    /* save_post reboots the device; the caller keeps its own key loop */
 }
