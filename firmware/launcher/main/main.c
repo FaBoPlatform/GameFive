@@ -73,6 +73,18 @@ static uint8_t keys_edges(void)
 {
     static uint8_t prev;
     uint8_t now = gf_keys_read(NULL) & (uint8_t)~KEYS_IGNORE;
+
+    /* symmetric toggle: A+B+START ~2s boots the installed game (all
+     * launcher screens poll through here at ~50 Hz) */
+    static int combo;
+    if ((now & (GF_KEY_A | GF_KEY_B | GF_KEY_START))
+        == (GF_KEY_A | GF_KEY_B | GF_KEY_START)) {
+        if (++combo >= 100 && store_has_game())
+            store_boot_game(); /* reboots */
+    } else {
+        combo = 0;
+    }
+
     uint8_t edges = (uint8_t)(now & ~prev);
     prev = now;
     return edges;
