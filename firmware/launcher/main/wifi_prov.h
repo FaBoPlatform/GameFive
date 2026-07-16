@@ -27,3 +27,7 @@ const char *wifi_fail_hint(void);
 
 /* Short status line for the LCD while provisioning is active. */
 const char *wifi_prov_status(void);
+
+/* Live phone-side activity ("network: X", "password: *** (n)") for the LCD,
+ * fed by the provisioning page over WebSocket. */
+const char *wifi_prov_activity(void);

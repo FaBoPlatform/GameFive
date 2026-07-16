@@ -117,8 +117,9 @@ esp_err_t wifi_sta_connect(const char *ssid, const char *pass, int timeout_ms)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
     ESP_ERROR_CHECK(esp_wifi_start());
-    /* v1 board runs on marginal charger-backfed power: cap TX bursts */
-    esp_wifi_set_max_tx_power(34); /* 8.5 dBm */
+    /* 15 dBm: quieter than the 19.5 default (EMI/noise) but strong
+     * enough for reliable links — ref qiita Kurogara afb092bf */
+    esp_wifi_set_max_tx_power(60);
 
     EventBits_t bits = xEventGroupWaitBits(s_ev, EV_GOT_IP | EV_FAILED,
                                            pdFALSE, pdFALSE,
@@ -144,10 +145,124 @@ static enum { PS_IDLE, PS_CONNECTING, PS_OK, PS_FAIL } s_pstate = PS_IDLE;
 static char s_pssid[33], s_ppass[65];
 static int s_pretries;
 static char s_status_lcd[48] = "waiting for phone...";
+static char s_activity_lcd[48] = "";
 
 const char *wifi_prov_status(void)
 {
     return s_status_lcd;
+}
+
+const char *wifi_prov_activity(void)
+{
+    return s_activity_lcd;
+}
+
+/* ---------------- WebSocket live link (browser <-> LCD) ---------------- */
+
+static httpd_handle_t s_server;
+#define WS_MAX_CLIENTS 4
+static int s_ws_fds[WS_MAX_CLIENTS];
+
+static void ws_add_fd(int fd)
+{
+    for (int i = 0; i < WS_MAX_CLIENTS; i++)
+        if (s_ws_fds[i] == fd)
+            return;
+    for (int i = 0; i < WS_MAX_CLIENTS; i++)
+        if (s_ws_fds[i] == 0) {
+            s_ws_fds[i] = fd;
+            return;
+        }
+}
+
+static void ws_push_work(void *arg)
+{
+    char *msg = arg;
+    httpd_ws_frame_t f = {
+        .type = HTTPD_WS_TYPE_TEXT,
+        .payload = (uint8_t *)msg,
+        .len = strlen(msg),
+    };
+    for (int i = 0; i < WS_MAX_CLIENTS; i++) {
+        if (s_ws_fds[i] == 0)
+            continue;
+        if (httpd_ws_send_frame_async(s_server, s_ws_fds[i], &f) != ESP_OK)
+            s_ws_fds[i] = 0; /* client gone */
+    }
+    free(msg);
+}
+
+/* Push a text message to every connected browser (thread-safe). */
+static void prov_push(const char *msg)
+{
+    if (!s_server)
+        return;
+    char *copy = strdup(msg);
+    if (copy && httpd_queue_work(s_server, ws_push_work, copy) != ESP_OK)
+        free(copy);
+}
+
+static void prov_push_state(void)
+{
+    char msg[80];
+    switch (s_pstate) {
+    case PS_CONNECTING:
+        snprintf(msg, sizeof(msg), "state:connecting");
+        break;
+    case PS_OK:
+        snprintf(msg, sizeof(msg), "state:ok");
+        break;
+    case PS_FAIL:
+        snprintf(msg, sizeof(msg), "state:fail:%s",
+                 wifi_fail_hint()[0] ? wifi_fail_hint()
+                                     : "Could not reach the network");
+        break;
+    default:
+        return;
+    }
+    prov_push(msg);
+}
+
+/* Browser events: hello / ssid:<name> / pw:<count> — mirrored on the LCD */
+static void ws_handle_msg(const char *m)
+{
+    if (!strcmp(m, "hello")) {
+        snprintf(s_activity_lcd, sizeof(s_activity_lcd), "phone linked");
+    } else if (!strncmp(m, "ssid:", 5)) {
+        snprintf(s_activity_lcd, sizeof(s_activity_lcd), "network: %.30s",
+                 m + 5);
+    } else if (!strncmp(m, "pw:", 3)) {
+        int n = atoi(m + 3);
+        char dots[17];
+        int k = n > 16 ? 16 : n;
+        memset(dots, '*', k);
+        dots[k] = '\0';
+        snprintf(s_activity_lcd, sizeof(s_activity_lcd), "password: %s (%d)",
+                 dots, n);
+    }
+}
+
+static esp_err_t ws_handler(httpd_req_t *req)
+{
+    if (req->method == HTTP_GET) { /* handshake complete */
+        ws_add_fd(httpd_req_to_sockfd(req));
+        snprintf(s_activity_lcd, sizeof(s_activity_lcd), "phone linked");
+        prov_push_state();
+        return ESP_OK;
+    }
+
+    httpd_ws_frame_t f = { .type = HTTPD_WS_TYPE_TEXT };
+    if (httpd_ws_recv_frame(req, &f, 0) != ESP_OK)
+        return ESP_FAIL;
+    if (f.len == 0 || f.len > 120)
+        return ESP_OK;
+    uint8_t buf[121];
+    f.payload = buf;
+    if (httpd_ws_recv_frame(req, &f, f.len) != ESP_OK)
+        return ESP_FAIL;
+    buf[f.len] = '\0';
+    ws_handle_msg((const char *)buf);
+    return ESP_OK;
 }
 
 static char s_scan_options[1200]; /* <option> list from the last scan */
@@ -193,6 +308,7 @@ static void prov_event(void *arg, esp_event_base_t base, int32_t id, void *data)
                 snprintf(s_status_lcd, sizeof(s_status_lcd), "FAILED: %s",
                          wifi_fail_hint()[0] ? wifi_fail_hint() : "no link");
                 ESP_LOGW(TAG, "prov connect failed, reason=%d", s_last_reason);
+                prov_push_state();
             }
         }
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
@@ -201,6 +317,7 @@ static void prov_event(void *arg, esp_event_base_t base, int32_t id, void *data)
             wifi_creds_save(s_pssid, s_ppass);
             snprintf(s_status_lcd, sizeof(s_status_lcd), "CONNECTED! rebooting");
             ESP_LOGI(TAG, "prov connect OK, creds saved");
+            prov_push_state();
         }
     }
 }
@@ -222,7 +339,7 @@ static esp_err_t root_get(httpd_req_t *req)
         return httpd_resp_send(req, NULL, 0);
     }
 
-    static char page[2600];
+    static char page[4200];
     snprintf(page, sizeof(page),
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -231,9 +348,10 @@ static esp_err_t root_get(httpd_req_t *req)
         "select,input,button{font-size:1.2em;padding:.4em;width:100%%;"
         "box-sizing:border-box;margin:.3em 0}"
         "button{background:#e33;color:#fff;border:0;padding:.6em}"
-        "h1{color:#e33}a{color:#8cf}small{color:#999}</style></head><body>"
+        "h1{color:#e33}a{color:#8cf}small{color:#999}"
+        "#st{font-weight:bold;min-height:1.4em}</style></head><body>"
         "<h1>GAME FIVE</h1><p>WiFi setup</p>"
-        "<form method='POST' action='/save'>"
+        "<form id='f' method='POST' action='/save'>"
         "<label>Network (2.4GHz only)</label>"
         "<select name='ssid' required>%s</select>"
         "<small>List shows only networks this console can use. "
@@ -241,7 +359,27 @@ static esp_err_t root_get(httpd_req_t *req)
         "<label>Password</label>"
         "<input name='pass' type='password' maxlength='64'>"
         "<button type='submit'>Connect</button></form>"
-        "</body></html>", s_scan_options);
+        "<p id='st'></p>"
+        "<script>"
+        "var st=document.getElementById('st'),ws=null;"
+        "try{ws=new WebSocket('ws://'+location.host+'/ws');"
+        "ws.onopen=function(){ws.send('hello');"
+        " ws.send('ssid:'+document.querySelector('select[name=ssid]').value)};"
+        "ws.onmessage=function(m){"
+        " if(m.data=='state:connecting'){st.textContent='Connecting...';st.style.color='#fc0'}"
+        " else if(m.data=='state:ok'){st.textContent='Connected! Rebooting into the game store.';st.style.color='#4c4'}"
+        " else if(m.data.indexOf('state:fail:')==0){st.textContent='Failed: '+m.data.slice(11);st.style.color='#e33'}"
+        "};}catch(e){}"
+        "function send(s){if(ws&&ws.readyState==1)ws.send(s)}"
+        "document.querySelector('select[name=ssid]').onchange=function(){send('ssid:'+this.value)};"
+        "document.querySelector('input[name=pass]').oninput=function(){send('pw:'+this.value.length)};"
+        "document.getElementById('f').onsubmit=function(ev){"
+        " if(ws&&ws.readyState==1){ev.preventDefault();"
+        "  fetch('/save',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+        "   body:new URLSearchParams(new FormData(this)).toString()});"
+        "  st.textContent='Connecting...';st.style.color='#fc0';}"
+        "};"
+        "</script></body></html>", s_scan_options);
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
 }
@@ -294,13 +432,8 @@ static esp_err_t status_get(httpd_req_t *req)
         "color:#eee}a{color:#8cf}</style></head><body>%s</body></html>",
         body);
     httpd_resp_set_type(req, "text/html");
-    esp_err_t err = httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
-
-    if (s_pstate == PS_OK) {
-        vTaskDelay(pdMS_TO_TICKS(1500));
-        esp_restart();
-    }
-    return err;
+    return httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
+    /* reboot on success is handled by the LCD loop in main.c */
 }
 
 static int url_decode(char *s)
@@ -366,6 +499,7 @@ static esp_err_t save_post(httpd_req_t *req)
     strlcpy((char *)wc.sta.password, pass, sizeof(wc.sta.password));
     esp_wifi_set_config(WIFI_IF_STA, &wc);
     s_pstate = PS_CONNECTING;
+    prov_push_state();
     esp_wifi_disconnect();
     esp_wifi_connect();
 
@@ -398,7 +532,7 @@ void wifi_provisioning_start(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
     ESP_ERROR_CHECK(esp_wifi_start());
-    esp_wifi_set_max_tx_power(34); /* 8.5 dBm — see wifi_sta_connect */
+    esp_wifi_set_max_tx_power(60); /* 15 dBm (qiita: default 19.5 is noisy) */
 
     scan_networks();
 
@@ -406,10 +540,14 @@ void wifi_provisioning_start(void)
     httpd_config_t hc = HTTPD_DEFAULT_CONFIG();
     hc.uri_match_fn = httpd_uri_match_wildcard;
     ESP_ERROR_CHECK(httpd_start(&server, &hc));
+    s_server = server;
     static httpd_uri_t u_save = { .uri = "/save", .method = HTTP_POST,
                                   .handler = save_post };
     static httpd_uri_t u_save2 = { .uri = "/*", .method = HTTP_POST,
                                    .handler = save_post };
+    static httpd_uri_t u_ws = { .uri = "/ws", .method = HTTP_GET,
+                                .handler = ws_handler,
+                                .is_websocket = true };
     static httpd_uri_t u_status = { .uri = "/status", .method = HTTP_GET,
                                     .handler = status_get };
     static httpd_uri_t u_rescan = { .uri = "/rescan", .method = HTTP_GET,
@@ -418,6 +556,7 @@ void wifi_provisioning_start(void)
                                   .handler = root_get };
     httpd_register_uri_handler(server, &u_save);
     httpd_register_uri_handler(server, &u_save2);
+    httpd_register_uri_handler(server, &u_ws);
     httpd_register_uri_handler(server, &u_status);
     httpd_register_uri_handler(server, &u_rescan);
     httpd_register_uri_handler(server, &u_root);

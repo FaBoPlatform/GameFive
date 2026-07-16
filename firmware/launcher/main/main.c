@@ -129,15 +129,22 @@ static void screen_provisioning(void)
 
     wifi_provisioning_start();
 
-    /* /status reboots on success; START escapes to the installed game.
-     * Mirror the provisioning state (connecting / failed reason) on the
-     * LCD status line. */
-    char last_status[48] = "";
+    /* START escapes to the installed game. Two live LCD lines: what the
+     * user does in the browser (over WebSocket) and the connect state.
+     * On CONNECTED, reboot into the launcher's normal flow after a beat. */
+    char last_status[48] = "", last_act[48] = "";
+    int ok_ticks = 0;
     for (;;) {
         uint8_t e = keys_edges();
         if ((e & GF_KEY_START) && store_has_game())
             store_boot_game(); /* reboots */
 
+        const char *act = wifi_prov_activity();
+        if (strcmp(act, last_act) != 0) {
+            strlcpy(last_act, act, sizeof(last_act));
+            gf_lcd_fill_rect(0, 270, W, 14, C_BG);
+            ui_center(270, act, 1, C_TEXT);
+        }
         const char *st = wifi_prov_status();
         if (strcmp(st, last_status) != 0) {
             strlcpy(last_status, st, sizeof(last_status));
@@ -145,6 +152,8 @@ static void screen_provisioning(void)
             ui_center(286, st, 1,
                       strstr(st, "FAILED") ? C_TITLE : C_OK);
         }
+        if (strncmp(st, "CONNECTED", 9) == 0 && ++ok_ticks >= 125)
+            esp_restart(); /* ~2.5s: let the phone see the success page */
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
