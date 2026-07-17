@@ -1,0 +1,6 @@
+-mlongcalls
+-fno-builtin-memcpy
+-fno-builtin-memset
+-fno-builtin-bzero
+"-specs=/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/specs/picolibc.specs"
+-fno-rtti

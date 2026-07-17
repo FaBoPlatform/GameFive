@@ -2,6 +2,16 @@
 #pragma once
 
 /*
+ * 1 = experimental GC9B72 2.1" round 360x360 module in J3 (reversed
+ *     orientation, control pins remapped through the GPIO matrix — see
+ *     round_lcd.c). The 320x240 game is downscaled x0.9 to 288x216 and
+ *     centered: the frame's corners exactly touch the circular edge, so
+ *     nothing is cropped. Overrides DOOM_PORTRAIT.
+ * 0 = stock HS20HS072RX 240x320 panel via the BSP.
+ */
+#define DOOM_ROUND_DISPLAY 1
+
+/*
  * 1 = portrait: hold the console normally; the 320x240 game is downscaled
  *     4:3 -> 240x180 and centered on the 240x320 panel (black bars).
  * 0 = landscape: full-screen 320x240, hold the console sideways.

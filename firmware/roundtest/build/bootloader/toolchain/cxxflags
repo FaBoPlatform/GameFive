@@ -1,0 +1,6 @@
+"-specs=/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader/specs/picolibc.specs"
+-mlongcalls
+-fno-builtin-memcpy
+-fno-builtin-memset
+-fno-builtin-bzero
+-fno-rtti

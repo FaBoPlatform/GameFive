@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/CMakeFiles/bootloader
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/CMakeFiles/bootloader.rule
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/CMakeFiles/bootloader-complete.rule
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

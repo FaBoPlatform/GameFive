@@ -1,0 +1,2 @@
+source /Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader/gdbinit/symbols
+source /Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build/bootloader/gdbinit/connect

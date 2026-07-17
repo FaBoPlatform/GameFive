@@ -1,0 +1,8 @@
+# Game Five roundtest — XIAO ESP32-S3
+CONFIG_IDF_TARGET="esp32s3"
+
+# 8 MB flash on the XIAO ESP32-S3
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+
+# Console over the XIAO's USB-C (native USB Serial/JTAG)
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y

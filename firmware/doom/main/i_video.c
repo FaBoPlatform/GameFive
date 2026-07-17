@@ -43,6 +43,9 @@
 #include "keys.h"
 
 #include "doom_config.h"
+#if DOOM_ROUND_DISPLAY
+#include "round_lcd.h"
+#endif
 
 #if DOOM_OLDBOARD_COMPAT
 #define KEYS_IGNORE_MASK ((uint8_t)(GF_KEY_UP | GF_KEY_SELECT))
@@ -209,7 +212,39 @@ void I_PreInitGraphics(void)
     assert(screenbuf && chunkbuf);
 }
 
-#if DOOM_PORTRAIT
+#if DOOM_ROUND_DISPLAY
+/*
+ * Round GC9B72 360x360: downscale 320x240 -> 288x216 (x0.9, aspect kept)
+ * and center. The 288x216 rectangle's corners lie exactly on the 360-dia
+ * circle, so the whole frame (including the status bar) stays visible.
+ */
+#define OUT_W 288
+#define OUT_H 216
+#define OUT_X0 ((ROUND_LCD_RES - OUT_W) / 2)  /* 36 */
+#define OUT_Y0 ((ROUND_LCD_RES - OUT_H) / 2)  /* 72 */
+#define OUT_CHUNK 36
+
+void I_FinishUpdate(void)
+{
+    static uint16_t xmap[OUT_W];
+    static uint16_t ymap[OUT_H];
+    if (xmap[OUT_W - 1] == 0) {
+        for (int x = 0; x < OUT_W; x++) xmap[x] = (x * 10) / 9;
+        for (int y = 0; y < OUT_H; y++) ymap[y] = (y * 10) / 9;
+    }
+
+    const unsigned char *fb = (const unsigned char *)screens[0].data;
+    for (int y0 = 0; y0 < OUT_H; y0 += OUT_CHUNK) {
+        uint16_t *dst = chunkbuf;
+        for (int y = y0; y < y0 + OUT_CHUNK; y++) {
+            const unsigned char *row = fb + ymap[y] * SCREENWIDTH;
+            for (int x = 0; x < OUT_W; x++)
+                *dst++ = lcdpal[row[xmap[x]]];
+        }
+        round_lcd_blit(OUT_X0, OUT_Y0 + y0, OUT_W, OUT_CHUNK, chunkbuf);
+    }
+}
+#elif DOOM_PORTRAIT
 /*
  * Portrait: downscale 320x240 -> 240x180 (3/4, aspect kept) and center on
  * the 240x320 panel (y offset 70). Nearest-neighbor via precomputed maps.

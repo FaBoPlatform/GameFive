@@ -17,6 +17,7 @@
 #include "driver/gpio.h"
 #include "lcd.h"
 #include "keys.h"
+#include "round_lcd.h"
 
 /* from i_main.c — not via i_system.h: prboom's doomtype.h (enum boolean)
  * clashes with stdbool.h pulled in by FreeRTOS headers */
@@ -48,6 +49,11 @@ void app_main(void)
     ESP_LOGI(TAG, "wad partition: offset 0x%" PRIx32 " size %" PRIu32,
              wad->address, wad->size);
 
+#if DOOM_ROUND_DISPLAY
+    /* GC9B72 round module: initializes the shared SPI bus itself (incl.
+     * MISO for the keyboard) and turns the backlight on. */
+    ESP_ERROR_CHECK(round_lcd_init());
+#else
     ESP_ERROR_CHECK(gf_lcd_init());
     gf_lcd_clear(GF_BLACK); /* clear in portrait before any rotation */
 
@@ -68,13 +74,16 @@ void app_main(void)
 #if DOOM_LCD_INVERT
     ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel, true));
 #endif
+#endif /* DOOM_ROUND_DISPLAY */
 
     ESP_ERROR_CHECK(gf_keys_init());
     /* diagnostic: weak pulldown on MISO. If the 74HC165 chain is fitted it
      * actively drives the line (reads stay 0xff idle); if the XIAO is bare
      * the floating line is dragged low and raw reads 0x00. */
     gpio_pulldown_en(8);
+#if !DOOM_ROUND_DISPLAY
     gf_lcd_backlight(100);
+#endif
 
     /* prboom has deep BSP recursion — keep the big internal stack */
     xTaskCreatePinnedToCore(doom_task, "doom", 24576, NULL, 5, NULL, 0);

@@ -1,0 +1,25 @@
+Command: cmake -G Ninja -B /Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/build -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/Users/akira/.espressif/python_env/idf6.0_py3.13_env/bin/python -DESP_PLATFORM=1 -DIDF_TARGET=esp32s3 -DCCACHE_ENABLE=False /Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest
+Loading defaults file /Users/akira/Documents/workspace_pcb/claude/GameFive/firmware/roundtest/sdkconfig.defaults...
+Configuration Report                                                            
+ ────────────────────────────────────────────────────────────────────────────── 
+   Parser Version: 1                                                            
+   Verbosity: default                                                           
+   Defaults policy: sdkconfig                                                   
+   Status: Finished with notifications                                          
+                                                                                
+  Miscellaneous                                                                 
+   ──────────────────────────────────────────────────────────────────────────   
+    * BT_NIMBLE_MESH_PROVISIONER (defined at                                    
+    /Users/akira/.espressif/v6.0.1/esp-idf/components/bt/host/nimble/Kconfi…    
+    'default 0' is not a valid bool value (only 'y' and 'n' are allowed).       
+    Value is treated as 'n'.                                                    
+    * FATFS_PRINT_LLI (defined at                                               
+    /Users/akira/.espressif/v6.0.1/esp-idf/components/fatfs/Kconfig:230):       
+    'default 0' is not a valid bool value (only 'y' and 'n' are allowed).       
+    Value is treated as 'n'.                                                    
+    * FATFS_PRINT_FLOAT (defined at                                             
+    /Users/akira/.espressif/v6.0.1/esp-idf/components/fatfs/Kconfig:235):       
+    'default 0' is not a valid bool value (only 'y' and 'n' are allowed).       
+    Value is treated as 'n'.                                                    
+   ──────────────────────────────────────────────────────────────────────────   
+ ────────────────────────────────────────────────────────────────────────────── 
