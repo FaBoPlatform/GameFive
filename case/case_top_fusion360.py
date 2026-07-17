@@ -1,7 +1,8 @@
-# GameFive Case Top (cover) — Fusion 360 script
+# GameFive Case Top (cover) — Fusion 360 script, board rev.2k (121.92 x 52.83)
 # - FLAT solid deck (no mound, no window — print in clear material for the LCD)
-# - through-holes over all 8 keys
-# Mates with GameFive_Case_Bottom (126x67, walls 2.5, 10mm cavity version)
+# - through-holes over all 8 keys, M2.5 through-screw clearance at the 4 corners
+# - power-switch knob slot continues through the skirt/tongue on the top wall
+# Mates with GameFive_Case_Bottom (127.92 x 58.83, walls 2.5, 10mm cavity, seam z=15.6)
 # MIRRORED left-right (x -> OX-x); interior headroom 7mm above the PCB
 import adsk.core, adsk.fusion, math
 
@@ -14,24 +15,25 @@ def run(_context):
 
     def mm(v): return v / 10.0
 
-    OX, OY = 126.0, 67.0
+    OX, OY = 127.92, 58.83
     WALL = 2.5
-    DECK_IN, DECK_OUT = 5.0, 7.0     # deck inner ceiling / outer surface (seam z=0); 2+5 = 7mm above PCB top
-    # tongue (alignment lip into the bottom case pocket)
-    TZ0, TZ1 = -1.5, 5.2   # top must overlap the deck underside (z=DECK_IN) to stay one lump
-    # buttons (case coords mm) and hole diameters
-    HOLES = [   # mirrored: x -> 126 - x
-        (105.96, 22.84, 10.0), # UP      (EVQQ1 plunger 6.2mm)
-        (105.96, 43.16, 10.0), # DOWN
-        (116.12, 33.00, 10.0), # LEFT
-        (95.80, 33.00, 10.0),  # RIGHT
-        (11.29, 39.83, 10.0),  # A
-        (28.82, 39.83, 10.0),  # B
-        (55.39, 60.28, 5.0),   # START   (B3F plunger 3.5mm)
-        (70.63, 60.28, 5.0),   # SELECT
+    DECK_IN, DECK_OUT = 5.0, 7.0     # deck inner ceiling / outer surface (seam z=0)
+    TZ0, TZ1 = -1.5, 5.2             # alignment tongue (overlaps deck underside -> one lump)
+    # buttons (case coords mm, x mirrored = OX - (board_mil*0.0254 + 3.0)) and hole diameters
+    HOLES = [
+        (108.71, 17.55, 10.0),  # UP      SW1 (638,-573)   EVQQ1 plunger 6.2
+        (108.71, 37.87, 10.0),  # DOWN    SW2 (638,-1373)
+        (118.87, 27.71, 10.0),  # LEFT    SW3 (238,-973)
+        (98.55, 27.71, 10.0),   # RIGHT   SW4 (1038,-973)
+        (11.86, 34.04, 10.0),   # A       SW5 (4451,-1222)
+        (29.39, 34.04, 10.0),   # B       SW6 (3761,-1222)
+        (56.85, 51.64, 5.0),    # START   SW7 (2680,-1915) B3F plunger 3.5
+        (71.07, 51.64, 5.0),    # SELECT  SW8 (2120,-1915)
     ]
     # M2.5 through-screws: TOP deck -> PCB MH (2.8) -> bottom boss pilot (2.1)
-    MH = [(9.35, 9.35), (116.64, 9.35), (9.35, 57.66), (116.64, 57.66)]
+    MH = [(9.35, 9.35), (118.57, 9.35), (9.35, 49.48), (118.57, 49.48)]
+    # power-switch knob slot (top wall, knob spans the seam: bottom-coords z13.8..17.4)
+    SW_XC, SW_W = 102.06, 6.0
 
     def box(x0, x1, y0, y1, z0, z1):
         ob = adsk.core.OrientedBoundingBox3D.create(
@@ -51,12 +53,14 @@ def run(_context):
     # 1. skirt + flat deck
     body = box(0, OX, 0, OY, 0, DECK_OUT)
     tbm.booleanOperation(body, box(WALL, OX-WALL, WALL, OY-WALL, -1, DECK_IN), DIFF)
-    # 4. alignment tongue (ring into bottom pocket), open at SELECT/START span
+    # 2. alignment tongue (ring into bottom pocket), open at SELECT/START span
     ring = box(2.6, OX-2.6, 2.6, OY-2.6, TZ0, TZ1)
     tbm.booleanOperation(ring, box(4.6, OX-4.6, 4.6, OY-4.6, TZ0-1, TZ1+1), DIFF)
-    tbm.booleanOperation(ring, box(44, 82, OY-6, OY+1, TZ0-1, TZ1+1), DIFF)   # gap for SELECT/START switches
+    tbm.booleanOperation(ring, box(52.85, 75.07, OY-6, OY+1, TZ0-1, TZ1+1), DIFF)  # SELECT/START gap
     tbm.booleanOperation(body, ring, UNI)
-    # 5. button holes
+    # 3. power-switch knob slot through skirt + tongue (knob top = +1.8 above seam)
+    tbm.booleanOperation(body, box(SW_XC-SW_W/2, SW_XC+SW_W/2, -1.0, 4.7, -2.0, 1.8), DIFF)
+    # 4. button holes + screw clearance holes
     for (hx, hy, hd) in HOLES:
         tbm.booleanOperation(body, cyl(hx, hy, -4, DECK_OUT+2, hd/2), DIFF)
     for (mx, my) in MH:
@@ -111,24 +115,27 @@ def run(_context):
     def probe(x, y, z):
         return int(b.pointContainment(adsk.core.Point3D.create(mm(x), mm(y), mm(z))))
     checks = [
-        ("deck solid",          probe(110, 8, 6.0), 0),
-        ("cavity empty",        probe(63, 33.5, 2.0), 2),
-        ("deck center solid",   probe(63, 30, 6.0), 0),
-        ("deck top area solid", probe(63, 8, 6.0), 0),
-        ("deck low area solid", probe(63, 54.5, 6.0), 0),
-        ("A hole empty",        probe(11.29, 39.83, 6.0), 2),
-        ("screw hole empty",    probe(9.35, 9.35, 6.0), 2),
-        ("A hole 10mm wide",    probe(11.29+4.6, 39.83, 6.0), 2),
-        ("SELECT small (5mm)",  probe(70.63+3.0, 60.28, 6.0), 0),
-        ("SELECT hole empty",   probe(70.63, 60.28, 6.0), 2),
-        ("D-pad UP hole empty", probe(105.96, 22.84, 6.0), 2),
-        ("web deck-RIGHTbtn",   probe(89.5, 33.0, 6.0), 0),
-        ("tongue solid",        probe(3.6, 33, -0.75), 0),
-        ("tongue gap empty",    probe(63, OY-3.6, -0.75), 2),
-        ("skirt wall solid",    probe(1.2, 33, 3.0), 0),
-        ("deck left of mound",  probe(31, 12, 6.0), 0),
-        ("deck right of mound", probe(100, 10, 6.0), 0),
-        ("deck below mound",    probe(30, 60, 6.0), 0),
+        ("deck center solid",    probe(63, 27, 6.0), 0),
+        ("deck top strip solid", probe(63, 8, 6.0), 0),
+        ("deck low strip solid", probe(90, 47, 6.0), 0),
+        ("cavity empty",         probe(63, 30, 2.0), 2),
+        ("UP hole empty",        probe(108.71, 17.55, 6.0), 2),
+        ("DOWN hole empty",      probe(108.71, 37.87, 6.0), 2),
+        ("LEFT hole empty",      probe(118.87, 27.71, 6.0), 2),
+        ("RIGHT hole empty",     probe(98.55, 27.71, 6.0), 2),
+        ("A hole empty",         probe(11.86, 34.04, 6.0), 2),
+        ("B hole empty",         probe(29.39, 34.04, 6.0), 2),
+        ("START hole empty",     probe(56.85, 51.64, 6.0), 2),
+        ("SELECT hole empty",    probe(71.07, 51.64, 6.0), 2),
+        ("A-B web solid",        probe(20.6, 34.04, 6.0), 0),
+        ("dpad center web",      probe(108.71, 27.71, 6.0), 0),
+        ("screw hole empty",     probe(9.35, 9.35, 6.0), 2),
+        ("screw web solid",      probe(9.35+2.6, 9.35, 6.0), 0),
+        ("SW9 slot cut empty",   probe(SW_XC, 1.2, 0.8), 2),
+        ("skirt near SW9 solid", probe(92.0, 1.2, 3.0), 0),
+        ("tongue solid",         probe(63, 3.6, -0.75), 0),
+        ("tongue gap empty",     probe(63, OY-3.6, -0.75), 2),
+        ("skirt wall solid",     probe(1.2, 30, 3.0), 0),
     ]
     ok = True
     for name, got, want in checks:

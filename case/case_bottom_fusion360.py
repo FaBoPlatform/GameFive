@@ -1,7 +1,8 @@
 # GameFive Case Bottom — Fusion 360 script (run via MCP bridge)
-# Board: GameFive rev.2i, 120x61x1.6mm, R3.81 corners
+# Board: GameFive rev.2k, 121.92 x 52.83 x 1.6mm, R3.81 corners
 # MIRRORED left-right (x -> OX-x) so the printed case matches the physical board
-# Requirement: 15mm cavity UNDER the PCB for speaker + LiPo battery
+# Top wall carries all I/O: USB-C (XIAO, top edge), microSD slot (back side),
+# power-switch knob slot (front side). 10mm cavity under the PCB for speaker + LiPo.
 import adsk.core, adsk.fusion
 
 def run(_context):
@@ -14,7 +15,7 @@ def run(_context):
     def mm(v): return v / 10.0  # mm -> cm (Fusion internal unit)
 
     # ---- parameters (mm) ----
-    BW, BH = 120.0, 61.0          # board size
+    BW, BH = 121.92, 52.83        # board size (4800 x 2080 mil)
     CLR = 0.5                     # board clearance per side
     WALL = 2.5
     FLOOR = 2.0
@@ -23,20 +24,29 @@ def run(_context):
     RIM = 2.0                     # wall above PCB top
     LEDGE = 1.5
 
-    OX = BW + 2*(CLR + WALL)      # 126
-    OY = BH + 2*(CLR + WALL)      # 67
-    OZ = FLOOR + CAV + PCB_T + RIM  # 20.6
-    Z_PCB = FLOOR + CAV           # 17.0 PCB underside
+    OX = BW + 2*(CLR + WALL)      # 127.92
+    OY = BH + 2*(CLR + WALL)      # 58.83
+    OZ = FLOOR + CAV + PCB_T + RIM  # 15.6
+    Z_PCB = FLOOR + CAV           # 12.0 PCB underside
 
-    # board-local -> case offset
-    OFF = WALL + CLR              # 3.0
-    # mounting holes (board-local mm, y from top edge)
-    MH = [(6.35, 6.35), (113.64, 6.35), (6.35, 54.66), (113.64, 54.66)]
+    OFF = WALL + CLR              # 3.0 board-local -> case offset
+    # mounting holes (board-local mm, y from top edge); symmetric in x -> mirror-safe
+    MH = [(6.35, 6.35), (115.57, 6.35), (6.35, 46.48), (115.57, 46.48)]
     BOSS_D, PILOT_D, PILOT_DEPTH = 7.0, 2.1, 8.0
-    # XIAO USB on RIGHT edge, board-local y center 17.78mm
-    USB_YC = 17.78 + OFF
+    # XIAO USB-C at the TOP board edge (module on the back, USB below the PCB),
+    # board-local x center 98.17mm -> mirrored case x
+    USB_XC = OX - (98.17 + OFF)   # 26.75
     USB_W = 14.0
-    USB_Z0 = FLOOR + CAV - 6.0    # slot bottom 6mm below PCB underside
+    USB_Z0 = Z_PCB - 6.0          # slot bottom 6mm below PCB underside (drop-in, open top)
+    # microSD (back side, card ejects through the top wall below the PCB)
+    SD_XC = OX - (40.01 + OFF)    # 84.91
+    SD_W = 13.0                   # card 11mm + clearance
+    SD_Z0, SD_Z1 = 9.6, 12.2      # card plane (connector 1.85mm under the board)
+    NOTCH_W, NOTCH_Z0 = 6.0, 8.2  # fingertip notch to reach the card end
+    # power slide-switch knob (front side, crosses the seam; slot continues in the lid)
+    SW_XC = OX - (22.86 + OFF)    # 102.06
+    SW_W = 6.0                    # knob 2mm + ~2mm travel + clearance
+    SW_Z0 = 13.8                  # just above PCB top (13.6), open to the seam
 
     def box(x0, x1, y0, y1, z0, z1):
         cx, cy, cz = mm((x0+x1)/2), mm((y0+y1)/2), mm((z0+z1)/2)
@@ -57,7 +67,7 @@ def run(_context):
     body = box(0, OX, 0, OY, 0, OZ)
     # PCB pocket (top open): full clearance area from Z_PCB up
     tbm.booleanOperation(body, box(WALL, OX-WALL, WALL, OY-WALL, Z_PCB, OZ+1), DIFF)
-    # lower cavity (15mm), inset LEDGE from pocket walls
+    # lower cavity, inset LEDGE from pocket walls
     tbm.booleanOperation(body, box(WALL+LEDGE, OX-WALL-LEDGE, WALL+LEDGE, OY-WALL-LEDGE, FLOOR, Z_PCB), DIFF)
     # corner bosses up to PCB level (overlap floor: z from 0)
     for (bx, by) in MH:
@@ -65,9 +75,15 @@ def run(_context):
     # pilot holes (M2.5 self-tap) from boss top down
     for (bx, by) in MH:
         tbm.booleanOperation(body, cyl(bx+OFF, by+OFF, Z_PCB-PILOT_DEPTH, Z_PCB+0.2, PILOT_D/2), DIFF)
-    # USB-C slot in LEFT wall after mirroring (open to top so board+XIAO drops in)
-    tbm.booleanOperation(body, box(-1.0, 7.0, USB_YC-USB_W/2, USB_YC+USB_W/2, USB_Z0, OZ+1), DIFF)
-    # speaker grille: concentric rings of D2 holes in the floor, near J2 (board bottom-right)
+    # USB-C drop-in slot in the TOP wall (through wall + ledge, open to top)
+    tbm.booleanOperation(body, box(USB_XC-USB_W/2, USB_XC+USB_W/2, -1.0, WALL+LEDGE+0.7, USB_Z0, OZ+1), DIFF)
+    # microSD slot in the TOP wall at card level; channel continues through the ledge
+    tbm.booleanOperation(body, box(SD_XC-SD_W/2, SD_XC+SD_W/2, -1.0, WALL+LEDGE+2.3, SD_Z0, SD_Z1), DIFF)
+    # fingertip notch (deeper, centered) so the ejected card can be pinched
+    tbm.booleanOperation(body, box(SD_XC-NOTCH_W/2, SD_XC+NOTCH_W/2, -1.0, WALL+0.7, NOTCH_Z0, SD_Z1), DIFF)
+    # power-switch knob slot in the TOP wall rim (open to the seam; lid continues it)
+    tbm.booleanOperation(body, box(SW_XC-SW_W/2, SW_XC+SW_W/2, -1.0, WALL+0.7, SW_Z0, OZ+1), DIFF)
+    # speaker grille: concentric rings of D2 holes in the floor (speaker bay near J2)
     import math
     GX, GY = 26.0, 40.0             # grille center (case coords, mm, mirrored)
     holes = [(GX, GY)]
@@ -127,19 +143,27 @@ def run(_context):
         return int(b.pointContainment(adsk.core.Point3D.create(mm(x), mm(y), mm(z))))
     # 0=inside solid, 2=outside
     checks = [
-        ("USB slot open at top",  probe(1.5, USB_YC, 15.0), 2),
-        ("floor solid",        probe(63, 33.5, 1.0), 0),
-        ("cavity empty",       probe(63, 33.5, 9.0), 2),
-        ("ledge solid",        probe(63, WALL+LEDGE/2, 10.0), 0),
-        ("boss solid",         probe(MH[0][0]+OFF+2.4, MH[0][1]+OFF, 10.0), 0),
-        ("pilot empty",        probe(MH[0][0]+OFF, MH[0][1]+OFF, 10.0), 2),
-        ("USB slot empty",     probe(1.5, USB_YC, 9.0), 2),
-        ("wall solid",         probe(1.2, 50.0, 12.0), 0),
-        ("pocket empty",       probe(63, 33.5, 18.0), 2),
-        ("grille hole empty",  probe(26.0, 40.0, 1.0), 2),
-        ("grille web solid",   probe(28.0, 40.0, 1.0), 0),
-        ("USB thru (ledge zone)", probe(3.75, USB_YC, 9.0), 2),
-        ("USB thru (wall zone)",  probe(1.0, USB_YC, 9.0), 2),
+        ("floor solid",           probe(63, 30, 1.0), 0),
+        ("cavity empty",          probe(63, 30, 9.0), 2),
+        ("pocket empty",          probe(63, 30, 14.0), 2),
+        ("ledge solid",           probe(63, WALL+LEDGE/2, 10.0), 0),
+        ("top wall solid",        probe(63, 1.2, 12.0), 0),
+        ("boss solid",            probe(MH[0][0]+OFF+2.4, MH[0][1]+OFF, 10.0), 0),
+        ("pilot empty",           probe(MH[0][0]+OFF, MH[0][1]+OFF, 10.0), 2),
+        ("USB slot empty",        probe(USB_XC, 1.5, 9.0), 2),
+        ("USB slot open at top",  probe(USB_XC, 1.5, 15.0), 2),
+        ("USB ledge channel",     probe(USB_XC, WALL+LEDGE/2, 9.0), 2),
+        ("SD slot empty",         probe(SD_XC, 1.5, 11.0), 2),
+        ("SD ledge channel",      probe(SD_XC, WALL+LEDGE/2, 11.0), 2),
+        ("SD notch empty",        probe(SD_XC, 1.5, 8.8), 2),
+        ("wall above SD solid",   probe(SD_XC, 1.2, 13.5), 0),
+        ("SW9 slot empty",        probe(SW_XC, 1.5, 14.5), 2),
+        ("wall below SW9 solid",  probe(SW_XC, 1.2, 12.5), 0),
+        ("grille hole empty",     probe(GX, GY, 1.0), 2),
+        ("grille web solid",      probe(GX+2.0, GY, 1.0), 0),
+        ("bottom wall solid",     probe(63, OY-1.2, 12.0), 0),
+        ("left wall solid",       probe(1.2, 30, 12.0), 0),
+        ("right wall solid",      probe(OX-1.2, 30, 12.0), 0),
     ]
     ok = True
     for name, got, want in checks:
